@@ -1266,7 +1266,7 @@ function allItems() {
       if (cat !== 'all' && i.category !== cat) return;
       if (itm !== 'all' && i.itemName !== itm) return;
       if (brnd !== 'all' && i.brand !== brnd) return;
-      result.push(Object.assign({}, i, {billDate: b.date, shop: b.shop}));
+      result.push(Object.assign({}, i, {billDate: b.date, shop: b.shop, paymentMethod: b.paymentMethod, paymentOther: b.paymentOther||'', paymentMethod2: b.paymentMethod2||'', paymentAmt2: b.paymentAmt2||null}));
     });
   });
   return result;
@@ -1354,11 +1354,13 @@ function renderDash() {
     if (uItems.indexOf(i.itemName) === -1) uItems.push(i.itemName);
     if (i.brand && uBrands.indexOf(i.brand) === -1) uBrands.push(i.brand);
   });
-  var catMap = {}, monthMap = {};
+  var catMap = {}, monthMap = {}, payMap = {};
   items.forEach(function(i){
     catMap[i.category] = (catMap[i.category] || 0) + i.amount;
     var k = i.billDate.substr(0,7);
     monthMap[k] = (monthMap[k] || 0) + i.amount;
+    var pm = (i.paymentMethod === 'Other' && i.paymentOther) ? i.paymentOther : (i.paymentMethod || 'Unknown');
+    payMap[pm] = (payMap[pm] || 0) + i.amount;
   });
   var topCatEntry = Object.entries(catMap).sort(function(a,b){ return b[1]-a[1]; })[0];
   var mKeys = Object.keys(monthMap).sort();
@@ -1395,11 +1397,27 @@ function renderDash() {
     html += '<div class="charts-grid">';
     html += '<div class="chart-card full"><div class="chart-ttl">📅 Monthly Spend (₹)</div><div class="chart-wrap tall"><canvas id="chart-mo"></canvas></div></div>';
     html += '<div class="chart-card"><div class="chart-ttl">🍩 By Category</div><div class="chart-wrap"><canvas id="chart-pie"></canvas></div></div>';
-    html += '<div class="chart-card"><div class="chart-ttl">📊 Category Breakdown</div><div class="chart-wrap"><canvas id="chart-catbar"></canvas></div></div>';
+    html += '<div class="chart-card"><div class="chart-ttl">💳 By Payment Mode</div><div class="chart-wrap"><canvas id="chart-pay"></canvas></div></div>';
     html += '</div>';
   }
 
   // Table
+  // Payment mode summary table
+  var pLabels = Object.keys(payMap).sort(function(a,b){return payMap[b]-payMap[a];});
+  html += '<div class="tbl-card" style="margin-top:11px;margin-bottom:11px;">';
+  html += '<div class="tbl-hdr"><h3>💳 Payment Mode Summary</h3><span>' + pLabels.length + ' modes</span></div>';
+  html += '<div class="tbl-wrap"><table>';
+  html += '<thead><tr><th>Payment Mode</th><th style="text-align:right;">Amount (₹)</th><th style="text-align:right;">% of Total</th></tr></thead><tbody>';
+  pLabels.forEach(function(pm) {
+    var pct = tot > 0 ? (payMap[pm]/tot*100).toFixed(1) : '0.0';
+    html += '<tr><td style="font-weight:600;">' + pm + '</td>';
+    html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(payMap[pm]) + '</td>';
+    html += '<td style="text-align:right;">' + pct + '%</td></tr>';
+  });
+  html += '<tr style="background:var(--forest);color:var(--gold-lt);font-weight:700;">';
+  html += '<td>TOTAL</td><td style="text-align:right;">₹' + fmt(tot) + '</td><td style="text-align:right;">100%</td></tr>';
+  html += '</tbody></table></div></div>';
+
   html += '<div class="tbl-card" style="margin-top:11px;">';
   html += '<div class="tbl-hdr"><h3>' + (showHist?'Purchase History':'Item & Brand Summary') + '</h3><span>' + iSumm.length + ' rows</span></div>';
   html += '<div class="tbl-wrap"><table>';
@@ -1468,12 +1486,18 @@ function renderDash() {
       dashCharts.pie = new Chart(document.getElementById('chart-pie'), {type:'doughnut',
         data:{labels:cLabels,datasets:[{data:cVals,backgroundColor:cCols,borderWidth:2,borderColor:'#fff'}]},
         options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:9}}}}});
-    if (document.getElementById('chart-catbar'))
-      dashCharts.catbar = new Chart(document.getElementById('chart-catbar'), {type:'bar',
-        data:{labels:cLabels.map(function(c){ return c.length>13?c.substr(0,12)+'…':c; }),datasets:[{data:cVals,backgroundColor:cCols,borderRadius:4}]},
-        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return '₹'+c.parsed.x.toLocaleString('en-IN'); }}}}  ,
-          scales:{x:{beginAtZero:true,ticks:{callback:function(v){ return '₹'+(v/1000).toFixed(0)+'k'; }}},y:{grid:{display:false}}}}});
+    if (document.getElementById('chart-pay')) {
+      var pKeys2 = Object.keys(payMap).sort(function(a,b){return payMap[b]-payMap[a];});
+      var pVals2 = pKeys2.map(function(k){return payMap[k];});
+      var pCols  = ['#1d4ed8','#7c3aed','#db2777','#d97706','#b45309','#0891b2','#15803d','#dc2626','#0d9488','#6b7280'];
+      dashCharts.pay = new Chart(document.getElementById('chart-pay'), {
+        type: 'doughnut',
+        data: {labels: pKeys2, datasets: [{data: pVals2,
+          backgroundColor: pCols.slice(0,pKeys2.length), borderWidth:2, borderColor:'#fff'}]},
+        options: {responsive:true, maintainAspectRatio:false,
+          plugins: {legend: {position:'bottom', labels:{font:{size:9},boxWidth:9}},
+            tooltip: {callbacks: {label: function(c){ return c.label+': \u20b9'+c.parsed.toLocaleString('en-IN'); }}}}}});
+    }
   }
 }
 

@@ -1272,8 +1272,26 @@ function renderDashboard() {
         <div class="chart-wrap tall"><canvas id="chart-mo"></canvas></div></div>
       <div class="chart-card"><div class="chart-ttl">🍩 By Category</div>
         <div class="chart-wrap"><canvas id="chart-pie"></canvas></div></div>
-      <div class="chart-card"><div class="chart-ttl">📊 Category Breakdown</div>
-        <div class="chart-wrap"><canvas id="chart-catbar"></canvas></div></div>
+      <div class="chart-card"><div class="chart-ttl">💳 By Payment Mode</div>
+        <div class="chart-wrap"><canvas id="chart-pay"></canvas></div></div>
+    </div>
+
+    <div class="tbl-card" style="margin-bottom:12px;">
+      <div class="tbl-hdr"><h3>&#128179; Payment Mode Summary</h3><span>${Object.keys(payMap).length} modes</span></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Payment Mode</th><th style="text-align:right;">Amount (&#8377;)</th><th style="text-align:right;">% of Total</th></tr></thead>
+        <tbody>
+          ${Object.keys(payMap).sort((a,b)=>payMap[b]-payMap[a]).map(pm => {
+            const pct = total !== 0 ? (payMap[pm]/total*100).toFixed(1) : '0.0';
+            return `<tr><td style="font-weight:600;">${pm}</td>
+              <td style="text-align:right;font-weight:700;color:var(--teal);">&#8377;${payMap[pm].toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+              <td style="text-align:right;">${pct}%</td></tr>`;
+          }).join('')}
+          <tr class="tfoot-row"><td>TOTAL</td>
+            <td style="text-align:right;">&#8377;${total.toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+            <td style="text-align:right;">100%</td></tr>
+        </tbody>
+      </table></div>
     </div>
 
     <div class="tbl-card">
@@ -1330,13 +1348,16 @@ function renderDashboard() {
       plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:9}}}}
   });
 
-  dashCharts.catbar = new Chart(document.getElementById('chart-catbar'), {
-    type:'bar',
-    data:{labels:cLabels.map(c=>c.length>14?c.substr(0,13)+'…':c),
-      datasets:[{data:cVals,backgroundColor:cCols,borderRadius:4}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'₹'+c.parsed.x.toLocaleString('en-IN')}}},
-      scales:{x:{beginAtZero:true,ticks:{callback:v=>'₹'+(v/1000).toFixed(0)+'k'}},y:{grid:{display:false}}}}
+  const pLabels = Object.keys(payMap).sort((a,b)=>payMap[b]-payMap[a]);
+  const pVals   = pLabels.map(k=>payMap[k]);
+  const pCols   = ['#1d4ed8','#7c3aed','#db2777','#d97706','#b45309','#0891b2','#15803d','#dc2626','#0d9488','#6b7280'];
+  dashCharts.pay = new Chart(document.getElementById('chart-pay'), {
+    type:'doughnut',
+    data:{labels:pLabels,datasets:[{data:pVals,
+      backgroundColor:pCols.slice(0,pLabels.length),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:9}},
+        tooltip:{callbacks:{label:c=>c.label+': ₹'+c.parsed.toLocaleString('en-IN')}}}}
   });
 }
 

@@ -826,27 +826,27 @@ function renderBudget() {
   const variance = totBgt - totAct;    // variance on non-CC expenses only
 
   // Summary pills — show grand budget, actual non-CC spend, variance on expenses
-  document.getElementById('bgt-summary').innerHTML = \`
+  document.getElementById('bgt-summary').innerHTML = `
     <div class="sum-pill">
       <div class="sum-pill-lbl">Total Budgeted</div>
-      <div class="sum-pill-val">&#8377;\${fmt(grandBgt,0)}</div>
+      <div class="sum-pill-val">&#8377;${fmt(grandBgt,0)}</div>
       <div class="sum-pill-sub">incl. CC bills</div>
     </div>
     <div class="sum-pill">
       <div class="sum-pill-lbl">Expense Budget</div>
-      <div class="sum-pill-val">&#8377;\${fmt(totBgt,0)}</div>
-      <div class="sum-pill-sub">\${expenseItems.length} items (excl. CC)</div>
+      <div class="sum-pill-val">&#8377;${fmt(totBgt,0)}</div>
+      <div class="sum-pill-sub">${expenseItems.length} items (excl. CC)</div>
     </div>
-    <div class="sum-pill \${totAct>totBgt?'red':'green'}">
+    <div class="sum-pill ${totAct>totBgt?'red':'green'}">
       <div class="sum-pill-lbl">Actual Spend</div>
-      <div class="sum-pill-val">&#8377;\${fmt(totAct,0)}</div>
+      <div class="sum-pill-val">&#8377;${fmt(totAct,0)}</div>
       <div class="sum-pill-sub">live from registers</div>
     </div>
-    <div class="sum-pill \${variance>=0?'green':'red'}">
+    <div class="sum-pill ${variance>=0?'green':'red'}">
       <div class="sum-pill-lbl">Variance</div>
-      <div class="sum-pill-val">\${variance>=0?'+':''}&#8377;\${fmt(Math.abs(variance),0)}</div>
-      <div class="sum-pill-sub">\${variance>=0?'Under budget':'Over budget'}</div>
-    </div>\`;
+      <div class="sum-pill-val">${variance>=0?'+':''}&#8377;${fmt(Math.abs(variance),0)}</div>
+      <div class="sum-pill-sub">${variance>=0?'Under budget':'Over budget'}</div>
+    </div>`;
 
   // Payment source summary — bank accounts only (real cash outflows)
   // CC bill items: their source is the bank account (e.g. ICICI pays HDFC CC bill)
@@ -889,23 +889,23 @@ function renderBudget() {
 
     const srcEl = document.getElementById('bgt-source-summary');
     srcEl.style.display = 'block';
-    let srcHtml = \`<div class="source-summary-title">
+    let srcHtml = `<div class="source-summary-title">
       <span>&#128179; Payment Source Summary (Bank Outflows)</span>
       <span style="font-size:11px;color:var(--muted);">Budget vs Actual</span>
     </div>
     <div class="source-row hdr-row">
       <div>Source</div><div style="text-align:right;">Budget (&#8377;)</div>
       <div style="text-align:right;">Actual (&#8377;)</div><div style="text-align:right;">Variance</div>
-    </div>\`;
+    </div>`;
     Object.entries(srcMap).sort((a,b)=>b[1].budget-a[1].budget).forEach(([src, v]) => {
       const vr = v.budget - v.actual;
       const col = SRC_COLOR[src] || '#6b7280';
-      srcHtml += \`<div class="source-row">
-        <div class="source-name" style="color:\${col};">&#128179; \${esc(src)}</div>
-        <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;\${fmt(v.budget,0)}</div>
-        <div style="text-align:right;font-size:12px;color:\${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;\${fmt(v.actual,0)}</div>
-        <div style="text-align:right;font-size:11px;font-weight:700;color:\${vr>=0?'var(--green)':'var(--red)'};">\${vr>=0?'&#9660;':'&#9650;'}&#8377;\${fmt(Math.abs(vr),0)}</div>
-      </div>\`;
+      srcHtml += `<div class="source-row">
+        <div class="source-name" style="color:${col};">&#128179; ${esc(src)}</div>
+        <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
+        <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
+        <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
+      </div>`;
     });
     srcEl.innerHTML = srcHtml;
   } else {
@@ -913,11 +913,11 @@ function renderBudget() {
   }
 
   if (!items.length) {
-    document.getElementById('bgt-content').innerHTML = \`
+    document.getElementById('bgt-content').innerHTML = `
       <div class="empty-state"><div class="ei">&#128203;</div>
-        <h3>No budget items for \${MONTHS[curMonth]} \${curYear}</h3>
+        <h3>No budget items for ${MONTHS[curMonth]} ${curYear}</h3>
         <p>Tap Auto-populate to pull from last month, or add items manually below.</p>
-      </div>\`;
+      </div>`;
     return;
   }
 
@@ -935,14 +935,14 @@ function renderBudget() {
       ? catBgt
       : catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
 
-    html += \`<div class="budget-table-wrap">
+    html += `<div class="budget-table-wrap">
       <div class="bgt-header">
-        <div class="bgt-header-title">\${esc(cat)}</div>
-        <div class="bgt-header-total">&#8377;\${fmt(catBgt,0)} bgt &nbsp;&#183;&nbsp; &#8377;\${fmt(catAct,0)} actual</div>
+        <div class="bgt-header-title">${esc(cat)}</div>
+        <div class="bgt-header-total">&#8377;${fmt(catBgt,0)} bgt &nbsp;&#183;&nbsp; &#8377;${fmt(catAct,0)} actual</div>
       </div>
       <div class="bgt-row hdr" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>Description</div><div>Payment Source</div><div>Budget</div><div>Actual</div><div>Variance</div><div></div>
-      </div>\`;
+      </div>`;
 
     catItems.forEach(it => {
       const isCCBill = it.cat === 'Credit Card Bills';
@@ -955,23 +955,23 @@ function renderBudget() {
         : (vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),0));
       const sCol= SRC_COLOR[it.source] || '#6b7280';
 
-      html += \`<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
+      html += `<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>
-          <div class="bgt-desc" title="\${escQ(it.desc)}">\${isCCBill?'&#128179; ':''}\${esc(it.desc)}</div>
-          \${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
+          <div class="bgt-desc" title="${escQ(it.desc)}">${isCCBill?'&#128179; ':''}${esc(it.desc)}</div>
+          ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
         </div>
-        <div class="bgt-src" style="color:\${sCol};font-size:10px;">\${esc(srcDisplay(it))}</div>
-        <div><input class="bgt-inp" type="number" value="\${it.budget||0}"
-          onchange="updateBgt('\${key}','\${it.id}',this.value)"></div>
-        <div class="bgt-actual" style="color:\${act>0?'var(--text)':'var(--muted)'};">\${act>0?'&#8377;'+fmt(act,0):'&#8212;'}</div>
-        <div class="bgt-var \${vrC}">\${vrT}</div>
+        <div class="bgt-src" style="color:${sCol};font-size:10px;">${esc(srcDisplay(it))}</div>
+        <div><input class="bgt-inp" type="number" value="${it.budget||0}"
+          onchange="updateBgt('${key}','${it.id}',this.value)"></div>
+        <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,0):'&#8212;'}</div>
+        <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
-          <button class="btn-icon" onclick="openEdit('\${key}','\${it.id}')">&#9998;</button>
-          <button class="btn-icon del" onclick="openDel('\${key}','\${it.id}','\${escQ(it.desc)}')">&#128465;</button>
+          <button class="btn-icon" onclick="openEdit('${key}','${it.id}')">&#9998;</button>
+          <button class="btn-icon del" onclick="openDel('${key}','${it.id}','${escQ(it.desc)}')">&#128465;</button>
         </div>
-      </div>\`;
+      </div>`;
     });
-    html += \`</div>\`;
+    html += `</div>`;
   });
 
   document.getElementById('bgt-content').innerHTML = html;
