@@ -350,7 +350,7 @@ tfoot tr td{background:var(--ink)!important;color:var(--accent-lt)!important;fon
     <div class="section-label">📋 Expense Details</div>
     <div class="form-grid">
       <div class="fg"><label>Date *</label><input type="date" id="e-date"></div>
-      <div class="fg"><label>Amount (₹) *</label><input type="number" id="e-amount" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="fg"><label>Amount (₹) *</label><input type="number" id="e-amount" step="0.01" placeholder="0.00 (negative for refund)"></div>
     </div>
     <div class="form-grid full" style="margin-top:10px;">
       <div class="fg"><label>Description *</label>
@@ -693,7 +693,7 @@ function renderExpenses() {
         <div class="exp-card-body" onclick="editExpense('${e.id}')">
           <div class="exp-card-top">
             <div class="exp-desc">${e.description}</div>
-            <div class="exp-amt">₹${fmt(e.amount)}</div>
+            <div class="exp-amt" style="color:${e.amount < 0 ? '#dc2626' : 'var(--teal)'};">₹${fmt(e.amount)}${e.amount < 0 ? ' <span style="font-size:10px;font-weight:600;">(Refund)</span>' : ''}</div>
           </div>
           <div class="exp-meta">
             <span>📅 ${fmtD(e.date)}</span>
@@ -703,7 +703,7 @@ function renderExpenses() {
           <div style="margin-top:5px;">${catBadge(e.category)}</div>
         </div>
         <div class="exp-card-footer">
-          <div class="exp-cat">${catEmj(e.category)} ${e.category}</div>
+          <div class="exp-cat">${catEmj(e.category)} ${e.category}${e.amount < 0 ? ' <span style="background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;margin-left:4px;">REFUND</span>' : ''}</div>
           <div class="exp-pay">${pmDisplay}</div>
           <div style="display:flex;gap:5px;">
             <button class="btn-icon" onclick="editExpense('${e.id}');event.stopPropagation()">✏️</button>
@@ -807,7 +807,7 @@ function saveExpense() {
   const pm2 = document.getElementById('e-payment2').value;
 
   if (!date) { showToast('Enter a date.', 'error'); return; }
-  if (isNaN(amount) || amount <= 0) { showToast('Enter a valid amount.', 'error'); return; }
+  if (isNaN(amount) || amount === 0) { showToast('Enter a valid amount (use negative for refunds).', 'error'); return; }
   if (!desc) { showToast('Enter a description.', 'error'); return; }
   if (!cat) { showToast('Select a category.', 'error'); return; }
   if (!pm) { showToast('Select a payment method.', 'error'); return; }

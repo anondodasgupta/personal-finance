@@ -385,7 +385,7 @@ tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;fo
             <option value="L">L</option><option value="ML">ML</option><option value="BTL">BTL</option>
             <option value="BOX">BOX</option><option value="PKT">PKT</option>
           </select></div>
-        <div class="fg"><label>Amount (&#8377;) *</label><input type="number" id="m-amt" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>Amount (&#8377;) *</label><input type="number" id="m-amt" step="0.01" placeholder="0.00 (negative for refund)"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -833,7 +833,9 @@ function updateSplitInfo() {
 function renderEntryItems() {
   var el = document.getElementById('entry-items-list');
   var tot = curItems.reduce(function(s,i){ return s + i.amount; }, 0);
-  document.getElementById('running-total').textContent = '₹' + fmt(tot);
+  var rtEl = document.getElementById('running-total');
+  rtEl.textContent = '₹' + fmt(tot);
+  rtEl.style.color = tot < 0 ? '#dc2626' : 'var(--green)';
   document.getElementById('item-count-lbl').textContent = '(' + curItems.length + ')';
   if (!curItems.length) {
     el.innerHTML = '<div class="no-items"><div style="font-size:28px;margin-bottom:6px;">📦</div><p style="font-size:12px;">No items yet. Tap Add Item.</p></div>';
@@ -848,7 +850,7 @@ function renderEntryItems() {
     html += '<div class="item-row-meta">' + catBadge(i.category) + '<span style="font-size:10px;color:var(--muted);">' + i.qty + ' ' + i.uom + '</span></div>';
     html += '</div>';
     html += '<div style="display:flex;align-items:center;gap:6px;">';
-    html += '<div class="item-row-amt">₹' + fmt(i.amount) + '</div>';
+    html += '<div class="item-row-amt" style="color:' + (i.amount < 0 ? 'var(--red)' : 'var(--green)') + ';">₹' + fmt(i.amount) + (i.amount < 0 ? ' <span style="font-size:10px;font-weight:700;">(Refund)</span>' : '') + '</div>';
     html += '<div class="item-btns">';
     html += '<button class="btn-icon" onclick="openItemModal(\'' + i.id + '\')">✏️</button>';
     html += '<button class="btn-icon del" onclick="removeItem(\'' + i.id + '\')">🗑️</button>';
@@ -950,7 +952,7 @@ function saveItem() {
   if (!name) { showToast('Enter item name.', 'error'); return; }
   if (!cat) { showToast('Select a category.', 'error'); return; }
   if (isNaN(qty) || qty <= 0) { showToast('Enter valid quantity.', 'error'); return; }
-  if (isNaN(amt) || amt < 0) { showToast('Enter valid amount.', 'error'); return; }
+  if (isNaN(amt)) { showToast('Enter valid amount.', 'error'); return; }
   var eid = document.getElementById('m-item-id').value;
   var obj = {id: eid || gid(), itemName: name, brand: brand, category: cat, qty: qty, uom: uom, amount: amt};
   if (eid) {
