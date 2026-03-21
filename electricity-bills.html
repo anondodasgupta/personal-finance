@@ -662,6 +662,8 @@
       Export regularly to back up your data.
     </div>
     <div class="data-mgmt-btns">
+      <button class="btn btn-secondary" onclick="copyToClipboard()" style="padding:9px 16px;font-size:13px;">📋 Copy</button>
+      <button class="btn btn-secondary" onclick="pasteFromClipboard()" style="padding:9px 16px;font-size:13px;">📥 Paste Sync</button>
       <button class="btn btn-secondary" onclick="exportData()" style="padding:9px 16px;font-size:13px;">⬇️ Export JSON</button>
       <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="padding:9px 16px;font-size:13px;">⬆️ Import JSON</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
@@ -1248,6 +1250,50 @@ document.addEventListener('DOMContentLoaded', () => {
   populateYearDropdowns();
   renderRecords();
 });
+
+// -- CLIPBOARD SYNC --
+function copyToClipboard() {
+  const raw = localStorage.getItem('electricity_bills_v1');
+  if (!raw) { showToast('No data to copy.', 'error'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(raw)
+      .then(() => showToast('✅ Copied! Open other device → tap Paste Sync.', 'success'))
+      .catch(() => _fbCopy(raw));
+  } else { _fbCopy(raw); }
+}
+function _fbCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); showToast('✅ Copied! Paste on other device.', 'success'); }
+  catch(e) { showToast('❌ Copy failed. Use Export JSON instead.', 'error'); }
+  document.body.removeChild(ta);
+}
+function pasteFromClipboard() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText()
+      .then(text => _mergePasted(text))
+      .catch(() => showToast('❌ Clipboard read failed. Use Import JSON instead.', 'error'));
+  } else {
+    showToast('❌ Clipboard read not supported. Use Import JSON instead.', 'error');
+  }
+}
+function _mergePasted(text) {
+  try {
+    const obj = JSON.parse(text);
+    const imported = Array.isArray(obj) ? obj : (obj.bills || []);
+    if (!Array.isArray(imported)) throw new Error();
+    let added = 0;
+    imported.forEach(b => {
+      if (!bills.find(x => x.year === b.year && x.month === b.month)) {
+        bills.push({...b, id: b.id || genId()});
+        added++;
+      }
+    });
+    saveData(); renderRecords();
+    showToast('✅ Synced ' + added + ' new entr' + (added!==1?'ies':'y') + '!', 'success');
+  } catch(e) { showToast('❌ Invalid data in clipboard.', 'error'); }
+}
 </script>
 </body>
 </html>

@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Income Register</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+</script>
 <style>
 :root{
   --deep:#0f2318;--dark:#1a3828;--mid:#2e6b4a;--light:#4a9068;
@@ -325,7 +326,9 @@ table tr:hover td{background:#f9f6ee;}
       <div class="data-bar" style="margin-top:8px;">
         <div class="data-bar-info"><strong>💾 Data</strong> stored locally. Export to back up.</div>
         <div class="data-bar-btns">
-          <button class="btn btn-secondary btn-sm" onclick="exportData()">↓ Export</button>
+          <button class="btn btn-secondary btn-sm" onclick="copyToClipboard()" title="Copy all data to clipboard">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="pasteFromClipboard()" title="Paste data from clipboard (copied on another device)">📥 Paste Sync</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportData()">↓ Export</button>
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">↑ Import</button>
           <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(event)">
         </div>
@@ -1547,6 +1550,47 @@ document.addEventListener('DOMContentLoaded', () => {
   renderIncome();
   switchTab('trading');
 });
+
+// -- CLIPBOARD SYNC --
+function copyToClipboard() {
+  const raw = localStorage.getItem('income_register_v1');
+  if (!raw) { showToast('No data to copy.', 'error'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(raw)
+      .then(() => showToast('✅ Copied! Open other device → tap Paste Sync.', 'success'))
+      .catch(() => _fbCopy(raw));
+  } else { _fbCopy(raw); }
+}
+function _fbCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); showToast('✅ Copied! Paste on other device.', 'success'); }
+  catch(e) { showToast('❌ Copy failed. Use Export instead.', 'error'); }
+  document.body.removeChild(ta);
+}
+function pasteFromClipboard() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText()
+      .then(text => _mergePasted(text))
+      .catch(() => showToast('❌ Clipboard read failed. Use Import instead.', 'error'));
+  } else {
+    showToast('❌ Clipboard read not supported. Use Import instead.', 'error');
+  }
+}
+function _mergePasted(text) {
+  try {
+    const obj = JSON.parse(text);
+    let added = 0;
+    if (Array.isArray(obj.trading))   { obj.trading.forEach(t   => { if (!D.trading.find(x=>x.id===t.id))   { D.trading.push(t);   added++; } }); }
+    if (Array.isArray(obj.dividends)) { obj.dividends.forEach(d => { if (!D.dividends.find(x=>x.id===d.id)) { D.dividends.push(d); added++; } }); }
+    if (Array.isArray(obj.other))     { obj.other.forEach(o     => { if (!D.other.find(x=>x.id===o.id))     { D.other.push(o);     added++; } }); }
+    if (Array.isArray(obj.brokers)   && obj.brokers.length)   D.brokers   = obj.brokers;
+    if (Array.isArray(obj.tradeCats) && obj.tradeCats.length) D.tradeCats = obj.tradeCats;
+    save(); renderIncome();
+    showToast('✅ Synced ' + added + ' entr' + (added!==1?'ies':'y') + '!', 'success');
+  } catch(e) { showToast('❌ Invalid data in clipboard.', 'error'); }
+}
 </script>
 </body>
 </html>

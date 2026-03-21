@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Budget Register</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+</script>
 <style>
 :root{
   --burgundy:#4a1528;--wine:#6b2040;--rose:#8b3a5a;
@@ -280,6 +281,8 @@ table tr:hover td{background:#fdf9f2;}
       display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;border:1px solid var(--border);">
       <div style="font-size:11px;color:var(--muted);"><strong style="color:var(--burgundy);">&#128190; Data</strong> stored locally. Export to back up.</div>
       <div style="display:flex;gap:5px;">
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard()" title="Copy all data to clipboard">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="pasteFromClipboard()" title="Paste data from clipboard (copied on another device)">📥 Paste Sync</button>
         <button class="btn btn-secondary btn-sm" onclick="exportData()">&#8595; Export</button>
         <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">&#8593; Import</button>
         <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(event)">
@@ -1561,6 +1564,50 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadData();
   renderBudget();
 });
+
+// -- CLIPBOARD SYNC --
+function copyToClipboard() {
+  const raw = localStorage.getItem('budget_register_v3');
+  if (!raw) { showToast('No data to copy.', 'error'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(raw)
+      .then(() => showToast('✅ Copied! Open other device → tap Paste Sync.', 'success'))
+      .catch(() => _fbCopy(raw));
+  } else { _fbCopy(raw); }
+}
+function _fbCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); showToast('✅ Copied! Paste on other device.', 'success'); }
+  catch(e) { showToast('❌ Copy failed. Use Export instead.', 'error'); }
+  document.body.removeChild(ta);
+}
+function pasteFromClipboard() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText()
+      .then(text => _mergePasted(text))
+      .catch(() => showToast('❌ Clipboard read failed. Use Import instead.', 'error'));
+  } else {
+    showToast('❌ Clipboard read not supported. Use Import instead.', 'error');
+  }
+}
+function _mergePasted(text) {
+  try {
+    const obj = JSON.parse(text);
+    if (obj.budgets && typeof obj.budgets==='object') {
+      Object.keys(obj.budgets).forEach(k => {
+        if (!D.budgets[k]) D.budgets[k] = [];
+        (obj.budgets[k]||[]).forEach(it => { if (!D.budgets[k].find(x=>x.id===it.id)) D.budgets[k].push(it); });
+      });
+    }
+    if (Array.isArray(obj.ccCards)    && obj.ccCards.length)    D.ccCards    = obj.ccCards;
+    if (Array.isArray(obj.categories) && obj.categories.length) D.categories = obj.categories;
+    if (Array.isArray(obj.payments)   && obj.payments.length)   D.payments   = obj.payments;
+    save(); renderBudget();
+    showToast('✅ Synced successfully!', 'success');
+  } catch(e) { showToast('❌ Invalid data in clipboard.', 'error'); }
+}
 </script>
 </body>
 </html>
