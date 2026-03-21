@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Purchase Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --forest:#1a3828;--green:#2e6b4a;--mid:#4a9068;--sage-lt:#c4dfd0;
+  --cream:#f7f2e8;--card:#fefcf7;--gold:#c9922a;--gold-lt:#f0d080;
+  --text:#1a2820;--muted:#5a7060;--border:#ddd8c8;--red:#dc2626;
+  --shadow:0 2px 16px rgba(26,56,40,.10);--shadow-lg:0 6px 32px rgba(26,56,40,.16);
+  --r:14px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;}
+.hdr{background:linear-gradient(135deg,var(--forest),var(--green));color:#fff;height:60px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.3);}
+.hdr-brand{display:flex;align-items:center;gap:9px;}
+.hdr-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold-lt));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.hdr h1{font-family:'Fraunces',serif;font-size:16px;color:var(--gold-lt);}
+.hdr-sub{font-size:10px;color:rgba(255,255,255,.45);margin-top:1px;}
+.hdr-nav{display:flex;gap:5px;flex-wrap:wrap;}
+.nav-btn{padding:6px 11px;border-radius:7px;border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;transition:all .2s;}
+.nav-btn.active,.nav-btn:hover{background:var(--gold);color:var(--forest);}
+.nav-btn:not(.active){background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);}
+.page{display:none;}.page.active{display:block;}
+.cat-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;
+  border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.page-pad{padding:14px 13px 110px;}
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px;}
+.section-hdr h2{font-family:'Fraunces',serif;font-size:19px;color:var(--forest);}
+.badge{background:var(--forest);color:var(--gold-lt);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.bill-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:9px;
+  overflow:hidden;border:1px solid var(--border);transition:transform .15s,box-shadow .15s;}
+.bill-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+.bill-card-body{padding:12px 14px;cursor:pointer;}
+.bill-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.bill-shop{font-weight:700;font-size:14px;color:var(--forest);}
+.bill-amt{font-family:'Fraunces',serif;font-size:17px;color:var(--green);font-weight:700;}
+.bill-meta{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--muted);flex-wrap:wrap;}
+.bill-card-footer{background:linear-gradient(135deg,var(--forest),var(--green));
+  padding:7px 14px;display:flex;align-items:center;justify-content:space-between;}
+.bill-items-count{color:rgba(255,255,255,.65);font-size:11px;}
+.bill-payment{color:var(--gold-lt);font-size:11px;font-weight:600;max-width:200px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fab{position:fixed;bottom:86px;right:18px;width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--gold-lt));color:var(--forest);border:none;
+  font-size:26px;cursor:pointer;box-shadow:0 4px 20px rgba(201,146,42,.5);
+  display:flex;align-items:center;justify-content:center;z-index:90;transition:all .2s;}
+.fab:hover{transform:scale(1.08);}
+.empty-state{text-align:center;padding:55px 18px;color:var(--muted);}
+.empty-state .ei{font-size:50px;margin-bottom:12px;}
+.empty-state h3{font-size:17px;color:var(--forest);margin-bottom:7px;}
+.data-bar{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:11px 14px;margin:0 0 11px;display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:7px;border:1px solid var(--border);}
+.data-bar-info{font-size:11px;color:var(--muted);}
+.data-bar-info strong{color:var(--forest);}
+.data-bar-btns{display:flex;gap:5px;}
+.entry-header{background:var(--forest);padding:13px 14px;display:flex;align-items:center;gap:11px;}
+.back-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;
+  border-radius:7px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;}
+.back-btn:hover{background:rgba(255,255,255,.25);}
+.entry-title{font-family:'Fraunces',serif;color:var(--gold-lt);font-size:16px;}
+.entry-subtitle{color:rgba(255,255,255,.45);font-size:11px;margin-top:2px;}
+.section-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  margin:11px 13px;padding:15px;border:1px solid var(--border);}
+.section-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.9px;margin-bottom:11px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-grid.full{grid-template-columns:1fr;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);
+  border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
+  background:#fafaf6;transition:all .2s;outline:none;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--mid);background:#fff;
+  box-shadow:0 0 0 3px rgba(74,144,104,.15);}
+.pay-other-row{margin-top:8px;display:none;}
+.pay-other-row.show{display:block;}
+.items-hdr{display:flex;align-items:center;justify-content:space-between;margin:0 13px 7px;}
+.items-hdr h3{font-family:'Fraunces',serif;font-size:15px;color:var(--forest);}
+.running-total{font-family:'Fraunces',serif;font-size:16px;color:var(--green);font-weight:700;}
+.item-row{background:var(--card);border-radius:9px;margin:0 13px 7px;padding:10px 12px;
+  display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.item-row-info{flex:1;min-width:0;}
+.item-row-name{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px;}
+.item-row-brand{font-size:11px;color:var(--muted);margin-bottom:3px;}
+.item-row-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.item-row-amt{font-family:'Fraunces',serif;font-size:14px;color:var(--green);font-weight:700;white-space:nowrap;}
+.item-btns{display:flex;gap:4px;}
+.btn-icon{padding:5px 7px;border-radius:5px;border:none;cursor:pointer;font-size:12px;
+  background:#f0ede4;transition:all .15s;}
+.btn-icon:hover{background:#e0ddd4;}
+.btn-icon.del:hover{background:#fee2e2;color:var(--red);}
+.no-items{text-align:center;padding:26px;color:var(--muted);background:var(--card);
+  border-radius:9px;margin:0 13px;border:2px dashed var(--border);}
+.entry-footer{position:fixed;bottom:0;left:0;right:0;background:var(--card);
+  border-top:1px solid var(--border);padding:10px 13px;display:flex;gap:9px;z-index:90;
+  box-shadow:0 -4px 20px rgba(0,0,0,.08);}
+.btn{padding:10px 18px;border-radius:var(--r-sm);border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-lt));color:var(--forest);flex:1;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,146,42,.4);}
+.btn-green{background:linear-gradient(135deg,var(--green),var(--mid));color:#fff;}
+.btn-green:hover{transform:translateY(-1px);}
+.btn-secondary{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
+.btn-secondary:hover{background:#f0ede4;}
+.btn-danger{background:#fee2e2;color:var(--red);border:1.5px solid #fecaca;}
+.btn-danger:hover{background:#fecaca;}
+.btn-sm{padding:6px 12px;font-size:11px;}
+/* Emoji picker */
+.ep-wrap{display:none;margin-top:6px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+  background:#fff;padding:9px;}
+.ep-wrap.open{display:block;}
+.ep-search{width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:12px;margin-bottom:7px;outline:none;background:#fafaf6;}
+.ep-search:focus{border-color:var(--mid);}
+.ep-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;}
+.ep-tab{padding:3px 9px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;
+  font-size:10px;font-weight:700;background:#fff;transition:all .12s;color:var(--muted);}
+.ep-tab.on{background:var(--forest);color:var(--gold-lt);border-color:var(--forest);}
+.ep-grid{display:flex;flex-wrap:wrap;gap:3px;max-height:150px;overflow-y:auto;}
+.ep-em{font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  border-radius:6px;border:2px solid transparent;cursor:pointer;background:none;transition:all .12s;}
+.ep-em:hover{background:#f0ede4;border-color:var(--mid);}
+/* Manager rows */
+.mgr-item{background:#fafaf6;border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;margin-bottom:5px;}
+.mgr-item-top{display:flex;align-items:center;gap:8px;}
+.mgr-item-lbl{flex:1;font-size:13px;font-weight:600;color:var(--text);}
+.mgr-actions{display:flex;gap:5px;}
+.mgr-edit-row{display:none;margin-top:8px;flex-direction:column;gap:7px;}
+.mgr-edit-row.open{display:flex;}
+.mgr-edit-inner{display:flex;gap:7px;align-items:center;}
+.mgr-name-inp{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;}
+.mgr-name-inp:focus{border-color:var(--mid);}
+.emj-btn{font-size:20px;width:40px;height:36px;min-width:40px;display:flex;align-items:center;
+  justify-content:center;border:1.5px solid var(--border);border-radius:6px;
+  background:#fff;cursor:pointer;transition:all .15s;}
+.emj-btn:hover{border-color:var(--mid);background:#f0ede4;}
+/* Modals */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,56,40,.6);
+  z-index:200;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;
+  max-height:92vh;overflow-y:auto;animation:slideUp .25s ease;padding-bottom:env(safe-area-inset-bottom);}
+@media(min-width:600px){.modal{border-radius:var(--r);margin:auto;max-height:88vh;}}
+@keyframes slideUp{from{transform:translateY(50px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:32px;height:4px;background:var(--border);border-radius:2px;margin:9px auto 0;display:block;}
+.modal-hdr{padding:13px 17px 7px;display:flex;align-items:center;justify-content:space-between;}
+.modal-hdr h3{font-family:'Fraunces',serif;font-size:16px;color:var(--forest);}
+.modal-close{background:#f0ede4;border:none;width:27px;height:27px;border-radius:50%;
+  cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:0 17px 15px;}
+.modal-footer{padding:10px 17px;display:flex;gap:8px;border-top:1px solid var(--border);}
+.cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:5px;}
+.cat-pill{padding:7px 9px;border-radius:7px;border:2px solid transparent;cursor:pointer;
+  font-size:11px;font-weight:600;transition:all .15s;text-align:left;background:none;
+  display:flex;align-items:center;gap:5px;}
+.cat-pill.selected{border-color:var(--forest);background:var(--sage-lt);}
+.cat-pill:hover:not(.selected){background:#f0ede4;}
+/* Dashboard */
+.dash-wrap{max-width:1100px;margin:0 auto;padding:16px 13px 48px;}
+.filter-bar{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:11px 13px;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:flex-end;
+  border:1px solid var(--border);}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:105px;flex:1;}
+.filter-group label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;}
+.filter-sel{padding:7px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+  font-family:'DM Sans',sans-serif;font-size:12px;background:#fff;color:var(--text);cursor:pointer;outline:none;}
+.filter-sel:focus{border-color:var(--mid);}
+.filter-reset{padding:7px 12px;background:var(--forest);color:var(--gold-lt);border:none;
+  border-radius:var(--r-sm);cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;
+  transition:all .15s;align-self:flex-end;}
+.filter-reset:hover{background:var(--green);}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:13px;}
+.kpi{background:var(--card);border-radius:var(--r);padding:13px;box-shadow:var(--shadow);
+  border:1px solid var(--border);border-top:3px solid var(--mid);position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;top:0;right:0;width:42px;height:42px;
+  background:radial-gradient(circle at top right,rgba(74,144,104,.12),transparent 70%);}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.kpi-val{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--forest);line-height:1;}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px;}
+.chart-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:15px;border:1px solid var(--border);}
+.chart-card.full{grid-column:1/-1;}
+.chart-ttl{font-family:'Fraunces',serif;font-size:13px;color:var(--forest);
+  margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.chart-wrap{position:relative;height:200px;}
+.chart-wrap.tall{height:260px;}
+.tbl-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--border);}
+.tbl-hdr{background:var(--forest);color:var(--gold-lt);padding:10px 15px;display:flex;align-items:center;justify-content:space-between;}
+.tbl-hdr h3{font-family:'Fraunces',serif;font-size:14px;}
+.tbl-hdr span{font-size:10px;color:rgba(255,255,255,.45);}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+table th{background:var(--forest);color:var(--gold-lt);padding:8px 10px;text-align:left;
+  font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
+table td{padding:8px 10px;border-bottom:1px solid #f0ede4;color:var(--text);}
+table tr:last-child td{border-bottom:none;}
+table tr:hover td{background:#f9f6ee;}
+tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;font-weight:700;font-size:11px;padding:8px 10px;}
+.toast{position:fixed;bottom:16px;right:13px;background:var(--forest);color:#fff;
+  padding:9px 15px;border-radius:9px;font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);
+  transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  z-index:9999;max-width:290px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-left:4px solid #2ecc71;}
+.toast.error{border-left:4px solid var(--red);}
+.toast.info{border-left:4px solid var(--gold);}
+@media(max-width:600px){
+  .charts-grid{grid-template-columns:1fr;}.chart-card.full{grid-column:1;}
+  .kpi-row{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filter-group{min-width:calc(50% - 8px);}
+}
+@media(max-width:360px){.kpi-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-icon">🧾</div>
+    <div><h1>Purchase Register</h1><div class="hdr-sub">Bills &amp; Purchases &#183; Item &amp; brand tracking</div></div>
+  </div>
+  <nav class="hdr-nav">
+    <button class="nav-btn active" id="nav-bills" onclick="showPage('bills')">&#129471; Bills</button>
+    <button class="nav-btn" id="nav-dashboard" onclick="showPage('dashboard')">&#128202; Dashboard</button>
+    <button class="nav-btn" onclick="openCatMgr()">&#9881; Categories</button>
+    <button class="nav-btn" onclick="openShopMgr()">&#127978; Shops</button>
+    <button class="nav-btn" onclick="openPayMgr()">&#128179; Payments</button>
+  </nav>
+</header>
+
+<!-- BILLS LIST -->
+<div id="page-bills" class="page active">
+  <div class="page-pad">
+    <div class="section-hdr">
+      <h2>Purchase Bills</h2>
+      <span class="badge" id="bills-count">0 bills</span>
+    </div>
+    <div id="bills-list"></div>
+    <div class="data-bar">
+      <div class="data-bar-info"><strong>&#128190; Data</strong> stored locally. Export to back up.</div>
+      <div class="data-bar-btns">
+        <button class="btn btn-secondary btn-sm" onclick="exportData()">&#8595; Export</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">&#8593; Import</button>
+        <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+  </div>
+  <button class="fab" onclick="newBill()">+</button>
+</div>
+
+<!-- BILL ENTRY -->
+<div id="page-entry" class="page">
+  <div class="entry-header">
+    <button class="back-btn" onclick="showPage('bills')">&#8592;</button>
+    <div>
+      <div class="entry-title" id="entry-title">New Purchase Bill</div>
+      <div class="entry-subtitle" id="entry-subtitle">Fill details and add items</div>
+    </div>
+  </div>
+  <input type="hidden" id="edit-bill-id">
+  <div class="section-card">
+    <div class="section-label">&#128203; Bill Details</div>
+    <div class="form-grid">
+      <div class="fg"><label>Shop / Store *</label><select id="e-shop"></select></div>
+      <div class="fg"><label>Date *</label><input type="date" id="e-date"></div>
+      <div class="fg"><label>Primary Payment Method *</label>
+        <select id="e-payment" onchange="onPayChange()"></select>
+      </div>
+      <div class="fg"><label>Invoice No.</label><input type="text" id="e-invoice" placeholder="Optional"></div>
+    </div>
+    <div class="pay-other-row" id="pay-other-row">
+      <div class="fg" style="margin-top:8px;"><label>Specify Primary Payment Mode</label>
+        <input type="text" id="e-pay-other" placeholder="e.g. Google Pay, PhonePe, Cheque..."></div>
+    </div>
+    <!-- Secondary Payment -->
+    <div style="margin-top:9px;background:#f7f5ee;border-radius:8px;padding:10px 12px;border:1.5px dashed var(--border);">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Secondary Payment (Optional)</div>
+      <div class="form-grid">
+        <div class="fg"><label>Secondary Method</label>
+          <select id="e-payment2" onchange="onPay2Change()">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="fg" id="e-amt2-wrap" style="display:none;"><label>Amount Paid (₹) *</label>
+          <input type="number" id="e-amt2" min="0" step="0.01" placeholder="0.00" oninput="updatePrimaryAmt()">
+        </div>
+      </div>
+      <div class="pay-other2-row" id="pay-other2-row" style="display:none;margin-top:8px;">
+        <div class="fg"><label>Specify Secondary Mode</label>
+          <input type="text" id="e-pay-other2" placeholder="e.g. Google Pay, PhonePe..."></div>
+      </div>
+      <div id="e-split-info" style="display:none;margin-top:7px;font-size:11px;color:var(--muted);padding:5px 8px;background:#fff;border-radius:6px;border:1px solid var(--border);"></div>
+    </div>
+    <div class="form-grid full" style="margin-top:9px;">
+      <div class="fg"><label>Notes</label><input type="text" id="e-notes" placeholder="Branch, any notes..."></div>
+    </div>
+  </div>
+  <div class="items-hdr">
+    <h3>Items <span id="item-count-lbl" style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;">(0)</span></h3>
+    <div class="running-total" id="running-total">&#8377;0.00</div>
+  </div>
+  <div id="entry-items-list"></div>
+  <div style="padding:0 13px 9px;">
+    <button class="btn btn-green" style="width:100%;padding:11px;" onclick="openItemModal()">+ Add Item</button>
+  </div>
+  <div style="height:75px;"></div>
+  <div class="entry-footer">
+    <button class="btn btn-secondary" onclick="showPage('bills')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveBill()">&#128190; Save Bill</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page">
+  <div class="dash-wrap">
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Fraunces',serif;font-size:22px;color:var(--forest);">Purchase <span style="color:var(--gold);">Dashboard</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Item &amp; brand analytics &#183; Price trends</div>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-group"><label>Year</label>
+        <select class="filter-sel" id="d-year" onchange="onDashFilter('year')"><option value="all">All Years</option></select></div>
+      <div class="filter-group"><label>Month</label>
+        <select class="filter-sel" id="d-month" onchange="onDashFilter('month')">
+          <option value="all">All Months</option>
+          <option>January</option><option>February</option><option>March</option><option>April</option>
+          <option>May</option><option>June</option><option>July</option><option>August</option>
+          <option>September</option><option>October</option><option>November</option><option>December</option>
+        </select></div>
+      <div class="filter-group"><label>Category</label>
+        <select class="filter-sel" id="d-cat" onchange="onDashFilter('cat')"><option value="all">All Categories</option></select></div>
+      <div class="filter-group"><label>Item</label>
+        <select class="filter-sel" id="d-item" onchange="onDashFilter('item')"><option value="all">All Items</option></select></div>
+      <div class="filter-group"><label>Brand</label>
+        <select class="filter-sel" id="d-brand" onchange="onDashFilter('brand')"><option value="all">All Brands</option></select></div>
+      <button class="filter-reset" onclick="resetDash()">&#8635; Reset</button>
+    </div>
+    <div id="dash-content"></div>
+  </div>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modal-overlay" id="item-modal">
+  <div class="modal">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3 id="item-modal-title">Add Item</h3>
+      <button class="modal-close" onclick="closeItemModal()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="m-item-id">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="fg"><label>Item Name * <small style="font-weight:400;font-size:9px;text-transform:none;">(generic)</small></label>
+          <input type="text" id="m-name" placeholder="e.g. Ghee, Washing Powder" list="item-sugg" autocomplete="off">
+          <datalist id="item-sugg"></datalist></div>
+        <div class="fg"><label>Brand <small style="font-weight:400;font-size:9px;text-transform:none;">(optional)</small></label>
+          <input type="text" id="m-brand" placeholder="e.g. Natureland Organics" list="brand-sugg" autocomplete="off">
+          <datalist id="brand-sugg"></datalist></div>
+      </div>
+      <div class="fg" style="margin-bottom:9px;"><label>Category *</label>
+        <div class="cat-grid" id="cat-grid"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:9px;">
+        <div class="fg"><label>Quantity *</label><input type="number" id="m-qty" min="0.01" step="0.01" placeholder="1"></div>
+        <div class="fg"><label>UOM</label>
+          <select id="m-uom">
+            <option value="PC">PC</option><option value="KG">KG</option><option value="G">G</option>
+            <option value="L">L</option><option value="ML">ML</option><option value="BTL">BTL</option>
+            <option value="BOX">BOX</option><option value="PKT">PKT</option>
+          </select></div>
+        <div class="fg"><label>Amount (&#8377;) *</label><input type="number" id="m-amt" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeItemModal()" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" id="item-save-btn" onclick="saveItem()" style="flex:2;">Add Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MANAGER -->
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>&#9881; Manage Categories</h3>
+      <button class="modal-close" onclick="closeCatMgr()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Tap &#9998; to edit name or emoji. Use the emoji picker to browse symbols.</p>
+      <div id="cat-mgr-list"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 7px;">Add New Category</div>
+      <div style="display:flex;gap:7px;align-items:center;">
+        <button class="emj-btn" id="new-emj-btn" onclick="toggleEpNew()">&#127991;&#65039;</button>
+        <input type="hidden" id="new-cat-emoji" value="🏷️">
+        <input type="text" id="new-cat-name" class="mgr-name-inp" placeholder="Category name...">
+        <button class="btn btn-green btn-sm" onclick="addCategory()">+ Add</button>
+      </div>
+      <div class="ep-wrap" id="ep-new">
+        <input class="ep-search" placeholder="Search..." oninput="epSearch(this.value,'new')">
+        <div class="ep-tabs" id="ep-tabs-new"></div>
+        <div class="ep-grid" id="ep-grid-new"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCatMgr()" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCatMgr()" style="flex:2;">&#128190; Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHOP MANAGER -->
+<div class="modal-overlay" id="shop-modal">
+  <div class="modal">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>&#127978; Manage Shops</h3>
+      <button class="modal-close" onclick="closeShopMgr()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add, edit or remove shops shown in the Bill Entry form.</p>
+      <div id="shop-mgr-list"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 7px;">Add New Shop</div>
+      <div style="display:flex;gap:7px;align-items:center;">
+        <input type="text" id="new-shop-name" class="mgr-name-inp" placeholder="Shop name..." style="flex:1;">
+        <button class="btn btn-green btn-sm" onclick="addShop()">+ Add</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeShopMgr()" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" onclick="saveShopMgr()" style="flex:2;">&#128190; Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT METHOD MANAGER -->
+<div class="modal-overlay" id="pay-modal">
+  <div class="modal">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>&#128179; Manage Payment Methods</h3>
+      <button class="modal-close" onclick="closePayMgr()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add, edit or remove payment methods. Tap &#9998; to rename.</p>
+      <div id="pay-mgr-list"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 7px;">Add New Method</div>
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <select id="new-pay-group" class="mgr-name-inp" style="width:auto;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;">
+          <option value="Credit Cards">Credit Cards</option>
+          <option value="Bank / UPI / Debit">Bank / UPI / Debit</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="text" id="new-pay-name" class="mgr-name-inp" placeholder="Method name..." style="flex:1;">
+        <button class="btn btn-green btn-sm" onclick="addPayMethod()">+ Add</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePayMgr()" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" onclick="savePayMgr()" style="flex:2;">&#128190; Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="del-modal">
+  <div class="modal" style="border-radius:var(--r);margin:auto;max-width:340px;max-height:none;">
+    <div class="modal-hdr"><h3>&#128465; Delete</h3>
+      <button class="modal-close" onclick="closeDelModal()">&#10005;</button></div>
+    <div class="modal-body"><p id="del-msg" style="font-size:13px;color:var(--muted);line-height:1.6;padding-top:5px;"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDelModal()" style="flex:1;">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDel()" style="flex:1;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const SK = 'purchase_register_v1';
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+const CAT_PALETTE = ['#3b82f6','#ec4899','#f59e0b','#8b5cf6','#ef4444',
+                     '#f97316','#92400e','#06b6d4','#10b981','#6b7280',
+                     '#14b8a6','#f43f5e','#84cc16','#a855f7','#0ea5e9'];
+const DEFAULT_CATS = [
+  {id:'c01',name:'Home Care',emoji:'🧹'},
+  {id:'c02',name:'Personal Care',emoji:'🧴'},
+  {id:'c03',name:'Staples & Grains',emoji:'🌾'},
+  {id:'c04',name:'Pulses & Lentils',emoji:'🫘'},
+  {id:'c05',name:'Spices & Condiments',emoji:'🌶️'},
+  {id:'c06',name:'Oils & Ghee',emoji:'🫒'},
+  {id:'c07',name:'Dry Fruits & Nuts',emoji:'🥜'},
+  {id:'c08',name:'Beverages',emoji:'☕'},
+  {id:'c09',name:'Snacks & Confectionery',emoji:'🧁'},
+  {id:'c10',name:'Other',emoji:'🎟️'}
+];
+const DEFAULT_SHOPS = [
+  "Spencer's","Reliance Fresh","DMart","Big Bazaar","Nature's Basket",
+  "More Supermarket","BigBasket (Online)","Blinkit (Online)",
+  "Zepto (Online)","Local Market","Other"
+];
+const DEFAULT_PAYMENTS = [
+  {id:'p01',group:'Credit Cards',name:'HDFC Bank Credit Card'},
+  {id:'p02',group:'Credit Cards',name:'Axis Bank My Zone Credit Card'},
+  {id:'p03',group:'Credit Cards',name:'IndusInd Bank Credit Card'},
+  {id:'p04',group:'Credit Cards',name:'Yes Bank Credit Card'},
+  {id:'p05',group:'Credit Cards',name:'Yes Bank Rupay Card'},
+  {id:'p06',group:'Credit Cards',name:'Axis Bank IOC Credit Card'},
+  {id:'p07',group:'Bank / UPI / Debit',name:'Axis Bank'},
+  {id:'p08',group:'Bank / UPI / Debit',name:'ICICI Bank'},
+  {id:'p09',group:'Bank / UPI / Debit',name:'Yes Bank'},
+  {id:'p10',group:'Other',name:'Cash'},
+  {id:'p11',group:'Other',name:'Rewards'},
+  {id:'p12',group:'Other',name:'Other'}
+];
+const EMOJI_GROUPS = [
+  {tab:'Food',   list:['🌾','🍚','🥣','🫘','🥜','🫒','🧈','🍯','🥛','🧀','🥚','🥩','🐟','🦐','🥦','🥕','🍅','🧅','🧄','🌶️','🫚','🫙','🍋','🍎','🍌','🫐','🥑','🥗','🍱','🍜','🫕']},
+  {tab:'Drinks', list:['☕','🍵','🫖','🧃','🥤','🧋','💧','🍷','🍺','🧉','🥛','🍶']},
+  {tab:'Snacks',  list:['🧁','🍰','🍪','🍫','🍬','🍭','🍿','🥐','🥖','🧆','🥞','🍘','🥙','🌮','🥨','🍡']},
+  {tab:'Home',   list:['🧹','🪣','🧺','🧻','🧽','🪥','🫧','🔧','🏠','🛋️','🛏️','🪑','🚿','🛁','🚽','🪞','💡','🔑','🪟','🧯']},
+  {tab:'Care',   list:['🧴','🧼','💊','🩺','🩹','🪥','💆','🧘','💅','👶','🧒','👩','🏥','💉','🩻','🪮']},
+  {tab:'Shop',   list:['🛒','🧺','🏪','🏬','🛍️','💰','💳','🧾','📦','📋','🎁','🎀','⭐','🌟','✨','🏷️','🔖','📌']},
+  {tab:'Nature', list:['🌿','🌱','🍃','🌍','♻️','🌸','🌻','🍀','🌲','🍂','🌊','🌤️','🌈','🔥','💎','🪨']}
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let D = {bills:[], categories:[], shops:[], payments:[]};
+let curItems = [];
+let pendingDel = {};
+let dashCharts = {};
+let tempCats = [];
+let tempShops = [];
+let tempPays = [];
+// Emoji picker state
+let epTarget = null;   // 'new' | index (number)
+let epTab = 'Food';
+
+// ── DATA ───────────────────────────────────────────────────────────────────
+function loadData() {
+  try {
+    const r = localStorage.getItem(SK);
+    D = r ? JSON.parse(r) : {bills:[], categories:[], shops:[], payments:[]};
+    if (!Array.isArray(D.bills)) D.bills = [];
+    if (!Array.isArray(D.categories) || !D.categories.length)
+      D.categories = JSON.parse(JSON.stringify(DEFAULT_CATS));
+    if (!Array.isArray(D.shops) || !D.shops.length)
+      D.shops = JSON.parse(JSON.stringify(DEFAULT_SHOPS));
+    if (!Array.isArray(D.payments) || !D.payments.length)
+      D.payments = JSON.parse(JSON.stringify(DEFAULT_PAYMENTS));
+  } catch(e) {
+    D = {bills:[], categories:JSON.parse(JSON.stringify(DEFAULT_CATS)),
+         shops:JSON.parse(JSON.stringify(DEFAULT_SHOPS)),
+         payments:JSON.parse(JSON.stringify(DEFAULT_PAYMENTS))};
+  }
+  if (!D.bills.length) seedData();
+}
+function save() { localStorage.setItem(SK, JSON.stringify(D)); }
+function gid() { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
+function catCol(n) {
+  const i = D.categories.findIndex(c => c.name === n);
+  return CAT_PALETTE[i % CAT_PALETTE.length] || '#6b7280';
+}
+function catEmj(n) { const c = D.categories.find(x => x.name === n); return c ? c.emoji : '🏷️'; }
+function catBadge(n) {
+  const col = catCol(n), em = catEmj(n);
+  return '<span class="cat-badge" style="background:' + col + '22;color:' + col + ';">' + em + ' ' + n + '</span>';
+}
+function fmt(n) { return n != null ? n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'; }
+function fmtD(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.getDate().toString().padStart(2,'0') + '/' +
+    (dt.getMonth()+1).toString().padStart(2,'0') + '/' + dt.getFullYear();
+}
+function showToast(m, t) {
+  t = t || 'info';
+  const el = document.getElementById('toast');
+  el.textContent = m; el.className = 'toast ' + t + ' show';
+  setTimeout(function(){ el.classList.remove('show'); }, 3000);
+}
+
+// ── SEED ───────────────────────────────────────────────────────────────────
+function seedData() {
+  D.bills = [{
+    id:'bill_sp_jan26', shop:"Spencer's", date:'2026-01-31',
+    paymentMethod:'Yes Bank Credit Card', paymentOther:'',
+    invoiceNo:'HO1201/21/142280', notes:'South City Mall, Lower Basement',
+    items:[
+      {id:gid(),itemName:'Washing Powder 6kg',brand:'Ariel Matic',category:'Home Care',qty:1,uom:'PC',amount:1255.00},
+      {id:gid(),itemName:'Disinfectant 1000ml',brand:'Lizol',category:'Home Care',qty:1,uom:'PC',amount:248.00},
+      {id:gid(),itemName:'Dishwash Liquid 750ml',brand:'Giffy Lemon',category:'Home Care',qty:1,uom:'PC',amount:200.00},
+      {id:gid(),itemName:'Steel Scrub',brand:'Gala',category:'Home Care',qty:2,uom:'PC',amount:40.00},
+      {id:gid(),itemName:'Dishwash Bar',brand:'Vim',category:'Home Care',qty:4,uom:'PC',amount:40.00},
+      {id:gid(),itemName:'Naphthalene Balls 200g',brand:'Doubletick',category:'Home Care',qty:2,uom:'PC',amount:150.00},
+      {id:gid(),itemName:'Air Freshener 3x10g',brand:'AER',category:'Home Care',qty:1,uom:'PC',amount:218.00},
+      {id:gid(),itemName:'Toilet Cleaner 500ml',brand:'Harpic',category:'Home Care',qty:1,uom:'PC',amount:110.00},
+      {id:gid(),itemName:'BOPP Bags Large',brand:'',category:'Home Care',qty:2,uom:'PC',amount:44.00},
+      {id:gid(),itemName:'Handwash 675ml',brand:'Himalaya PureHands',category:'Personal Care',qty:1,uom:'PC',amount:89.00},
+      {id:gid(),itemName:'Baby Cotton Buds 150s',brand:"Johnson's",category:'Personal Care',qty:1,uom:'PC',amount:154.00},
+      {id:gid(),itemName:'Toothbrush 2+2',brand:'Oral-B',category:'Personal Care',qty:1,uom:'PC',amount:160.00},
+      {id:gid(),itemName:'White Sugar 1kg',brand:'Madhur',category:'Staples & Grains',qty:1,uom:'PC',amount:64.00},
+      {id:gid(),itemName:'Sabudana 500g',brand:'DNV',category:'Staples & Grains',qty:1,uom:'PC',amount:84.48},
+      {id:gid(),itemName:'Iodised Salt 1kg',brand:'Tata',category:'Staples & Grains',qty:1,uom:'PC',amount:30.00},
+      {id:gid(),itemName:'Whole Wheat Atta 5kg',brand:'Ganesh',category:'Staples & Grains',qty:1,uom:'PC',amount:239.00},
+      {id:gid(),itemName:'Sona Masoori Rice 1kg',brand:'Just Organik',category:'Staples & Grains',qty:1,uom:'PC',amount:85.00},
+      {id:gid(),itemName:'Peas Dal 500g',brand:'SC',category:'Staples & Grains',qty:1,uom:'PC',amount:55.00},
+      {id:gid(),itemName:'Red Rajma 500g',brand:'Natureland Organics',category:'Pulses & Lentils',qty:1,uom:'PC',amount:141.00},
+      {id:gid(),itemName:'Moong Split 500g',brand:'Natureland Organics',category:'Pulses & Lentils',qty:1,uom:'PC',amount:104.00},
+      {id:gid(),itemName:'Rajma Chitra 500g',brand:'Natureland Organics',category:'Pulses & Lentils',qty:1,uom:'PC',amount:151.00},
+      {id:gid(),itemName:'Lobia White 500g',brand:'Just Organik',category:'Pulses & Lentils',qty:1,uom:'PC',amount:140.00},
+      {id:gid(),itemName:'Tomato Ketchup 1.1kg',brand:'Kissan',category:'Spices & Condiments',qty:1,uom:'PC',amount:110.00},
+      {id:gid(),itemName:'Turmeric Powder 100g',brand:'JK',category:'Spices & Condiments',qty:2,uom:'PC',amount:67.20},
+      {id:gid(),itemName:'Jeera Whole 100g',brand:'JK',category:'Spices & Condiments',qty:1,uom:'PC',amount:61.60},
+      {id:gid(),itemName:'Jeera Powder 100g',brand:'JK',category:'Spices & Condiments',qty:2,uom:'PC',amount:139.84},
+      {id:gid(),itemName:'Coriander Powder 100g',brand:'JK',category:'Spices & Condiments',qty:2,uom:'PC',amount:64.00},
+      {id:gid(),itemName:'Poppy Seeds 100g',brand:'Chuk-De',category:'Spices & Condiments',qty:2,uom:'PC',amount:375.00},
+      {id:gid(),itemName:'Non-Fruit Vinegar 350ml',brand:'DNV',category:'Spices & Condiments',qty:1,uom:'PC',amount:37.50},
+      {id:gid(),itemName:'Cassia Whole 100g',brand:'JK',category:'Spices & Condiments',qty:1,uom:'PC',amount:109.25},
+      {id:gid(),itemName:'Green Elaichi 25g',brand:'Chukde',category:'Spices & Condiments',qty:1,uom:'PC',amount:147.00},
+      {id:gid(),itemName:'Kul Pickle 400g',brand:'DNV',category:'Spices & Condiments',qty:1,uom:'PC',amount:87.00},
+      {id:gid(),itemName:'Kashmiri Chilli Powder 50g',brand:'JK',category:'Spices & Condiments',qty:1,uom:'PC',amount:36.18},
+      {id:gid(),itemName:'Mustard Brown Whole 100g',brand:'Sunrise',category:'Spices & Condiments',qty:1,uom:'PC',amount:28.00},
+      {id:gid(),itemName:'Chilli Powder 100g',brand:'JK',category:'Spices & Condiments',qty:1,uom:'PC',amount:40.20},
+      {id:gid(),itemName:'Cow Ghee 400ml',brand:'Natureland Organics',category:'Oils & Ghee',qty:1,uom:'PC',amount:523.00},
+      {id:gid(),itemName:'Mustard Oil 1ltr',brand:'Engine',category:'Oils & Ghee',qty:2,uom:'PC',amount:406.00},
+      {id:gid(),itemName:'Kachchi Ghani Mustard Oil 1Lt',brand:'Sarfa',category:'Oils & Ghee',qty:2,uom:'PC',amount:358.00},
+      {id:gid(),itemName:'Virgin Coconut Oil 250ml',brand:'Disano',category:'Oils & Ghee',qty:1,uom:'PC',amount:195.00},
+      {id:gid(),itemName:'Coconut Oil 175ml',brand:'Parachute',category:'Oils & Ghee',qty:1,uom:'PC',amount:113.00},
+      {id:gid(),itemName:'Makhana Premium 200g',brand:'Farmers Studio',category:'Dry Fruits & Nuts',qty:1,uom:'PC',amount:449.00},
+      {id:gid(),itemName:'Walnut Kernel 200g',brand:'Mark',category:'Dry Fruits & Nuts',qty:2,uom:'PC',amount:1072.00},
+      {id:gid(),itemName:'Cashew 240 KB',brand:'',category:'Dry Fruits & Nuts',qty:0.5,uom:'KG',amount:675.00},
+      {id:gid(),itemName:'Peanuts 500g',brand:'Natureland Organics',category:'Dry Fruits & Nuts',qty:1,uom:'PC',amount:114.00},
+      {id:gid(),itemName:'Green Lemon Honey Tea Bags 100s',brand:'Lipton',category:'Beverages',qty:1,uom:'PC',amount:699.00},
+      {id:gid(),itemName:'Mint Candy 13g',brand:'Tic Tac',category:'Snacks & Confectionery',qty:1,uom:'PC',amount:18.00},
+      {id:gid(),itemName:'Biscuit 200g',brand:'Britannia 5050',category:'Snacks & Confectionery',qty:1,uom:'PC',amount:30.00},
+      {id:gid(),itemName:'Pan Banarasi Candy 100g',brand:'Candzey',category:'Snacks & Confectionery',qty:1,uom:'PC',amount:30.00},
+      {id:gid(),itemName:'Masala Noodles 560g',brand:'Maggi',category:'Snacks & Confectionery',qty:1,uom:'PC',amount:111.00},
+      {id:gid(),itemName:'Rewards Subscription',brand:"Spencer's",category:'Other',qty:1,uom:'PC',amount:500.00}
+    ]
+  }];
+  save();
+}
+
+// ── PAYMENT SELECT ─────────────────────────────────────────────────────────
+function populatePaymentSelects() {
+  ['e-payment','e-payment2'].forEach(function(selId) {
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    var cur = sel.value;
+    sel.innerHTML = '';
+    if (selId === 'e-payment2') {
+      var none = document.createElement('option');
+      none.value = ''; none.textContent = '— None —';
+      sel.appendChild(none);
+    }
+    // Group by group
+    var groups = {};
+    D.payments.forEach(function(p) {
+      if (!groups[p.group]) groups[p.group] = [];
+      groups[p.group].push(p);
+    });
+    Object.keys(groups).forEach(function(g) {
+      var og = document.createElement('optgroup');
+      og.label = g;
+      groups[g].forEach(function(p) {
+        var o = document.createElement('option');
+        o.value = p.name; o.textContent = p.name;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    });
+    if (cur && [...sel.options].some(function(o){ return o.value === cur; })) sel.value = cur;
+    else if (selId === 'e-payment' && sel.options.length > 0) sel.selectedIndex = 0;
+    else if (selId === 'e-payment2') sel.value = '';
+  });
+}
+
+// ── SHOP SELECT ────────────────────────────────────────────────────────────
+function populateShopSelect() {
+  var sel = document.getElementById('e-shop');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">Select shop</option>';
+  D.shops.forEach(function(s) {
+    var o = document.createElement('option');
+    o.value = s; o.textContent = s; sel.appendChild(o);
+  });
+  if (D.shops.indexOf(cur) !== -1) sel.value = cur;
+}
+
+// ── BILLS LIST ─────────────────────────────────────────────────────────────
+function renderBills() {
+  var el = document.getElementById('bills-list');
+  var countEl = document.getElementById('bills-count');
+  countEl.textContent = D.bills.length + ' bill' + (D.bills.length !== 1 ? 's' : '');
+  if (!D.bills.length) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">🧾</div><h3>No bills yet</h3><p>Tap + to add your first purchase bill.</p></div>';
+    return;
+  }
+  var sorted = D.bills.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var html = '';
+  sorted.forEach(function(b) {
+    var tot = b.items.reduce(function(s,i){ return s + i.amount; }, 0);
+    var cats = [];
+    b.items.forEach(function(i){ if (cats.indexOf(i.category) === -1) cats.push(i.category); });
+    var pm = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : b.paymentMethod;
+    var pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    var pmDisplay = pm + (pm2 ? ' + ' + pm2 : '');
+    var catHtml = cats.slice(0,4).map(catBadge).join('');
+    if (cats.length > 4) catHtml += '<span style="font-size:10px;color:var(--muted);align-self:center;">+' + (cats.length-4) + ' more</span>';
+    html += '<div class="bill-card">';
+    html += '<div class="bill-card-body" onclick="editBill(\'' + b.id + '\')">';
+    html += '<div class="bill-card-top"><div class="bill-shop">🏪 ' + b.shop + '</div><div class="bill-amt">₹' + fmt(tot) + '</div></div>';
+    html += '<div class="bill-meta"><span>📅 ' + fmtD(b.date) + '</span><span>💳 ' + pmDisplay + '</span>';
+    if (b.invoiceNo) html += '<span>🧾 ' + b.invoiceNo + '</span>';
+    html += '</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px;">' + catHtml + '</div>';
+    html += '</div>';
+    html += '<div class="bill-card-footer">';
+    html += '<div class="bill-items-count">' + b.items.length + ' items</div>';
+    html += '<div class="bill-payment">' + pmDisplay + '</div>';
+    html += '<div style="display:flex;gap:5px;">';
+    html += '<button class="btn-icon" onclick="editBill(\'' + b.id + '\');event.stopPropagation()">✏️</button>';
+    html += '<button class="btn-icon del" onclick="delBillConfirm(\'' + b.id + '\');event.stopPropagation()">🗑️</button>';
+    html += '</div></div></div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── BILL ENTRY ─────────────────────────────────────────────────────────────
+function newBill() {
+  document.getElementById('edit-bill-id').value = '';
+  document.getElementById('e-shop').value = '';
+  document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
+  populatePaymentSelects();
+  document.getElementById('e-payment').selectedIndex = 0;
+  document.getElementById('e-invoice').value = '';
+  document.getElementById('e-notes').value = '';
+  document.getElementById('e-pay-other').value = '';
+  document.getElementById('pay-other-row').classList.remove('show');
+  document.getElementById('e-payment2').value = '';
+  document.getElementById('e-amt2').value = '';
+  document.getElementById('e-amt2-wrap').style.display = 'none';
+  document.getElementById('pay-other2-row').style.display = 'none';
+  document.getElementById('e-split-info').style.display = 'none';
+  curItems = [];
+  document.getElementById('entry-title').textContent = 'New Purchase Bill';
+  document.getElementById('entry-subtitle').textContent = 'Fill details and add items';
+  renderEntryItems();
+  showPage('entry');
+}
+
+function editBill(id) {
+  var b = D.bills.find(function(x){ return x.id === id; });
+  if (!b) return;
+  populatePaymentSelects();
+  document.getElementById('edit-bill-id').value = b.id;
+  document.getElementById('e-shop').value = b.shop;
+  document.getElementById('e-date').value = b.date;
+  document.getElementById('e-payment').value = b.paymentMethod;
+  document.getElementById('e-invoice').value = b.invoiceNo || '';
+  document.getElementById('e-notes').value = b.notes || '';
+  document.getElementById('e-pay-other').value = b.paymentOther || '';
+  document.getElementById('pay-other-row').classList.toggle('show', b.paymentMethod === 'Other');
+  // Secondary payment
+  var pm2 = b.paymentMethod2 || '';
+  document.getElementById('e-payment2').value = pm2;
+  document.getElementById('e-amt2').value = pm2 ? (b.paymentAmt2 || '') : '';
+  document.getElementById('e-amt2-wrap').style.display = pm2 ? 'flex' : 'none';
+  document.getElementById('pay-other2-row').style.display = (pm2 === 'Other') ? 'block' : 'none';
+  document.getElementById('e-pay-other2').value = b.paymentOther2 || '';
+  curItems = JSON.parse(JSON.stringify(b.items));
+  document.getElementById('entry-title').textContent = 'Edit — ' + b.shop;
+  document.getElementById('entry-subtitle').textContent = fmtD(b.date);
+  updateSplitInfo();
+  renderEntryItems();
+  showPage('entry');
+}
+
+function onPayChange() {
+  document.getElementById('pay-other-row').classList.toggle('show',
+    document.getElementById('e-payment').value === 'Other');
+  updateSplitInfo();
+}
+
+function onPay2Change() {
+  var pm2 = document.getElementById('e-payment2').value;
+  document.getElementById('e-amt2-wrap').style.display = pm2 ? 'flex' : 'none';
+  document.getElementById('pay-other2-row').style.display = (pm2 === 'Other') ? 'block' : 'none';
+  if (!pm2) {
+    document.getElementById('e-amt2').value = '';
+    document.getElementById('e-split-info').style.display = 'none';
+  }
+  updateSplitInfo();
+}
+
+function updatePrimaryAmt() { updateSplitInfo(); }
+
+function updateSplitInfo() {
+  var pm2 = document.getElementById('e-payment2').value;
+  var infoEl = document.getElementById('e-split-info');
+  if (!pm2) { infoEl.style.display = 'none'; return; }
+  var tot = curItems.reduce(function(s,i){ return s + i.amount; }, 0);
+  var amt2 = parseFloat(document.getElementById('e-amt2').value) || 0;
+  var amt1 = tot - amt2;
+  infoEl.style.display = 'block';
+  if (tot <= 0) { infoEl.textContent = 'Add items to see split.'; return; }
+  var pm1 = document.getElementById('e-payment').value || 'Primary';
+  var color1 = amt1 < 0 ? 'var(--red)' : 'var(--green)';
+  infoEl.innerHTML = '💳 <strong>' + pm1 + '</strong>: <span style="color:' + color1 + '">₹' + fmt(amt1) + '</span>'
+    + ' &nbsp;+&nbsp; 💳 <strong>' + pm2 + '</strong>: <span style="color:var(--green)">₹' + fmt(amt2) + '</span>'
+    + ' &nbsp;= ₹' + fmt(tot) + ' total';
+}
+
+function renderEntryItems() {
+  var el = document.getElementById('entry-items-list');
+  var tot = curItems.reduce(function(s,i){ return s + i.amount; }, 0);
+  document.getElementById('running-total').textContent = '₹' + fmt(tot);
+  document.getElementById('item-count-lbl').textContent = '(' + curItems.length + ')';
+  if (!curItems.length) {
+    el.innerHTML = '<div class="no-items"><div style="font-size:28px;margin-bottom:6px;">📦</div><p style="font-size:12px;">No items yet. Tap Add Item.</p></div>';
+    return;
+  }
+  var html = '';
+  curItems.forEach(function(i) {
+    html += '<div class="item-row">';
+    html += '<div class="item-row-info">';
+    html += '<div class="item-row-name">' + i.itemName + '</div>';
+    if (i.brand) html += '<div class="item-row-brand">🏷️ ' + i.brand + '</div>';
+    html += '<div class="item-row-meta">' + catBadge(i.category) + '<span style="font-size:10px;color:var(--muted);">' + i.qty + ' ' + i.uom + '</span></div>';
+    html += '</div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;">';
+    html += '<div class="item-row-amt">₹' + fmt(i.amount) + '</div>';
+    html += '<div class="item-btns">';
+    html += '<button class="btn-icon" onclick="openItemModal(\'' + i.id + '\')">✏️</button>';
+    html += '<button class="btn-icon del" onclick="removeItem(\'' + i.id + '\')">🗑️</button>';
+    html += '</div></div></div>';
+  });
+  el.innerHTML = html;
+  updateSplitInfo();
+}
+
+function saveBill() {
+  var shop = document.getElementById('e-shop').value;
+  var date = document.getElementById('e-date').value;
+  var pm = document.getElementById('e-payment').value;
+  var pm2 = document.getElementById('e-payment2').value;
+  if (!shop) { showToast('Select a shop.', 'error'); return; }
+  if (!date) { showToast('Enter a date.', 'error'); return; }
+  if (!pm) { showToast('Select a primary payment method.', 'error'); return; }
+  if (!curItems.length) { showToast('Add at least one item.', 'error'); return; }
+  var tot = curItems.reduce(function(s,i){ return s + i.amount; }, 0);
+  var amt2 = null;
+  if (pm2) {
+    amt2 = parseFloat(document.getElementById('e-amt2').value);
+    if (isNaN(amt2) || amt2 <= 0) { showToast('Enter amount paid via secondary method.', 'error'); return; }
+    if (amt2 >= tot) { showToast('Secondary amount must be less than bill total (₹' + fmt(tot) + ').', 'error'); return; }
+  }
+  var eid = document.getElementById('edit-bill-id').value;
+  var bill = {
+    id: eid || gid(), shop: shop, date: date, paymentMethod: pm,
+    paymentOther: pm === 'Other' ? document.getElementById('e-pay-other').value.trim() : '',
+    paymentMethod2: pm2 || '',
+    paymentAmt2: pm2 ? amt2 : null,
+    paymentOther2: (pm2 === 'Other') ? document.getElementById('e-pay-other2').value.trim() : '',
+    invoiceNo: document.getElementById('e-invoice').value.trim(),
+    notes: document.getElementById('e-notes').value.trim(),
+    items: curItems
+  };
+  if (eid) {
+    var idx = D.bills.findIndex(function(b){ return b.id === eid; });
+    if (idx !== -1) D.bills[idx] = bill;
+  } else {
+    D.bills.push(bill);
+  }
+  save(); renderBills(); showToast('✅ Bill saved!', 'success'); showPage('bills');
+}
+
+// ── ITEM MODAL ─────────────────────────────────────────────────────────────
+function openItemModal(id) {
+  buildCatGrid(); updateSugg();
+  if (id) {
+    var it = curItems.find(function(i){ return i.id === id; });
+    if (!it) return;
+    document.getElementById('m-item-id').value = it.id;
+    document.getElementById('m-name').value = it.itemName;
+    document.getElementById('m-brand').value = it.brand || '';
+    document.getElementById('m-qty').value = it.qty;
+    document.getElementById('m-uom').value = it.uom;
+    document.getElementById('m-amt').value = it.amount;
+    selCat(it.category);
+    document.getElementById('item-modal-title').textContent = 'Edit Item';
+    document.getElementById('item-save-btn').textContent = '✏️ Update';
+  } else {
+    ['m-item-id','m-name','m-brand','m-qty','m-amt'].forEach(function(x){ document.getElementById(x).value = ''; });
+    document.getElementById('m-uom').value = 'PC';
+    selCat('');
+    document.getElementById('item-modal-title').textContent = 'Add Item';
+    document.getElementById('item-save-btn').textContent = '+ Add Item';
+  }
+  document.getElementById('item-modal').classList.add('open');
+  setTimeout(function(){ document.getElementById('m-name').focus(); }, 150);
+}
+function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); }
+
+function buildCatGrid() {
+  var html = '';
+  D.categories.forEach(function(c) {
+    var col = catCol(c.name);
+    html += '<button type="button" class="cat-pill" data-cat="' + c.name + '" ';
+    html += 'style="background:' + col + '18;" ';
+    html += 'onclick="selCat(\'' + c.name.replace(/'/g, "\\'") + '\')">';
+    html += c.emoji + ' ' + c.name + '</button>';
+  });
+  document.getElementById('cat-grid').innerHTML = html;
+}
+function selCat(n) {
+  document.querySelectorAll('.cat-pill').forEach(function(p){
+    p.classList.toggle('selected', p.dataset.cat === n);
+  });
+}
+function getCat() { var e = document.querySelector('.cat-pill.selected'); return e ? e.dataset.cat : ''; }
+function removeItem(id) { curItems = curItems.filter(function(i){ return i.id !== id; }); renderEntryItems(); }
+
+function saveItem() {
+  var name = document.getElementById('m-name').value.trim();
+  var brand = document.getElementById('m-brand').value.trim();
+  var cat = getCat();
+  var qty = parseFloat(document.getElementById('m-qty').value);
+  var uom = document.getElementById('m-uom').value;
+  var amt = parseFloat(document.getElementById('m-amt').value);
+  if (!name) { showToast('Enter item name.', 'error'); return; }
+  if (!cat) { showToast('Select a category.', 'error'); return; }
+  if (isNaN(qty) || qty <= 0) { showToast('Enter valid quantity.', 'error'); return; }
+  if (isNaN(amt) || amt < 0) { showToast('Enter valid amount.', 'error'); return; }
+  var eid = document.getElementById('m-item-id').value;
+  var obj = {id: eid || gid(), itemName: name, brand: brand, category: cat, qty: qty, uom: uom, amount: amt};
+  if (eid) {
+    var i = curItems.findIndex(function(x){ return x.id === eid; });
+    if (i !== -1) curItems[i] = obj;
+  } else {
+    curItems.push(obj);
+  }
+  closeItemModal(); renderEntryItems();
+}
+
+function updateSugg() {
+  var names = [], brands = [];
+  D.bills.forEach(function(b){ b.items.forEach(function(i){
+    if (names.indexOf(i.itemName) === -1) names.push(i.itemName);
+    if (i.brand && brands.indexOf(i.brand) === -1) brands.push(i.brand);
+  });});
+  names.sort(); brands.sort();
+  document.getElementById('item-sugg').innerHTML = names.map(function(n){ return '<option value="' + n + '">'; }).join('');
+  document.getElementById('brand-sugg').innerHTML = brands.map(function(n){ return '<option value="' + n + '">'; }).join('');
+}
+
+// ── EMOJI PICKER ───────────────────────────────────────────────────────────
+function buildEpTabs(wrapperId) {
+  var tabsEl = document.getElementById('ep-tabs-' + wrapperId);
+  if (!tabsEl) return;
+  var html = '';
+  EMOJI_GROUPS.forEach(function(g) {
+    html += '<button class="ep-tab' + (g.tab === epTab ? ' on' : '') + '" ';
+    html += 'onclick="setEpTab(\'' + wrapperId + '\',\'' + g.tab + '\')">' + g.tab + '</button>';
+  });
+  tabsEl.innerHTML = html;
+}
+function renderEpGrid(wrapperId, search) {
+  var gridEl = document.getElementById('ep-grid-' + wrapperId);
+  if (!gridEl) return;
+  var emojis = [];
+  if (search) {
+    EMOJI_GROUPS.forEach(function(g){ emojis = emojis.concat(g.list); });
+  } else {
+    var g = EMOJI_GROUPS.find(function(x){ return x.tab === epTab; });
+    emojis = g ? g.list : EMOJI_GROUPS[0].list;
+  }
+  gridEl.innerHTML = emojis.map(function(e){
+    return '<button class="ep-em" onclick="pickEmoji(\'' + wrapperId + '\',\'' + e + '\')">' + e + '</button>';
+  }).join('');
+}
+function setEpTab(wrapperId, tab) {
+  epTab = tab;
+  buildEpTabs(wrapperId);
+  renderEpGrid(wrapperId, '');
+  var inp = document.getElementById('ep-' + wrapperId) && document.getElementById('ep-' + wrapperId).querySelector('.ep-search');
+  if (inp) inp.value = '';
+}
+function epSearch(val, wrapperId) { renderEpGrid(wrapperId, val); }
+function toggleEpNew() {
+  var ep = document.getElementById('ep-new');
+  var isOpen = ep.classList.contains('open');
+  closeAllEp();
+  if (!isOpen) {
+    ep.classList.add('open');
+    epTarget = 'new';
+    buildEpTabs('new');
+    renderEpGrid('new', '');
+  }
+}
+function toggleEpEdit(idx) {
+  var ep = document.getElementById('ep-edit-' + idx);
+  if (!ep) return;
+  var isOpen = ep.classList.contains('open');
+  closeAllEp();
+  if (!isOpen) {
+    ep.classList.add('open');
+    epTarget = idx;
+    buildEpTabs('edit-' + idx);
+    renderEpGrid('edit-' + idx, '');
+  }
+}
+function closeAllEp() {
+  document.querySelectorAll('.ep-wrap').forEach(function(e){ e.classList.remove('open'); });
+  epTarget = null;
+}
+function pickEmoji(wrapperId, emoji) {
+  if (wrapperId === 'new') {
+    document.getElementById('new-cat-emoji').value = emoji;
+    document.getElementById('new-emj-btn').textContent = emoji;
+  } else {
+    var idx = parseInt(wrapperId.replace('edit-', ''));
+    if (!isNaN(idx) && tempCats[idx]) {
+      tempCats[idx].emoji = emoji;
+      var btn = document.getElementById('emj-edit-' + idx);
+      if (btn) btn.textContent = emoji;
+    }
+  }
+  closeAllEp();
+}
+
+// ── CATEGORY MANAGER ───────────────────────────────────────────────────────
+function openCatMgr() {
+  tempCats = JSON.parse(JSON.stringify(D.categories));
+  renderCatList();
+  document.getElementById('cat-modal').classList.add('open');
+}
+function closeCatMgr() {
+  document.getElementById('cat-modal').classList.remove('open');
+  closeAllEp();
+}
+function renderCatList() {
+  var html = '';
+  tempCats.forEach(function(c, i) {
+    html += '<div class="mgr-item">';
+    html += '<div class="mgr-item-top">';
+    html += '<span style="font-size:20px;min-width:26px;">' + c.emoji + '</span>';
+    html += '<span class="mgr-item-lbl" id="cat-lbl-' + i + '">' + c.name + '</span>';
+    html += '<div class="mgr-actions">';
+    html += '<button class="btn-icon" onclick="toggleCatEdit(' + i + ')" title="Edit">✏️</button>';
+    html += '<button class="btn-icon del" onclick="removeTempCat(' + i + ')" title="Delete">🗑️</button>';
+    html += '</div></div>';
+    html += '<div class="mgr-edit-row" id="cat-edit-' + i + '">';
+    html += '<div class="mgr-edit-inner">';
+    html += '<button class="emj-btn" id="emj-edit-' + i + '" onclick="toggleEpEdit(' + i + ')">' + c.emoji + '</button>';
+    html += '<input class="mgr-name-inp" id="cat-inp-' + i + '" value="' + c.name + '" placeholder="Category name" ';
+    html += 'oninput="tempCats[' + i + '].name=this.value;document.getElementById(\'cat-lbl-' + i + '\').textContent=this.value;">';
+    html += '</div>';
+    html += '<div class="ep-wrap" id="ep-edit-' + i + '">';
+    html += '<input class="ep-search" placeholder="Search..." oninput="epSearch(this.value,\'edit-' + i + '\')">';
+    html += '<div class="ep-tabs" id="ep-tabs-edit-' + i + '"></div>';
+    html += '<div class="ep-grid" id="ep-grid-edit-' + i + '"></div>';
+    html += '</div></div></div>';
+  });
+  document.getElementById('cat-mgr-list').innerHTML = html;
+}
+function toggleCatEdit(i) {
+  var row = document.getElementById('cat-edit-' + i);
+  var isOpen = row.classList.contains('open');
+  document.querySelectorAll('[id^="cat-edit-"]').forEach(function(e){ e.classList.remove('open'); });
+  closeAllEp();
+  if (!isOpen) {
+    row.classList.add('open');
+    setTimeout(function(){ var inp = document.getElementById('cat-inp-' + i); if(inp) inp.focus(); }, 50);
+  }
+}
+function removeTempCat(i) { tempCats.splice(i, 1); renderCatList(); }
+function addCategory() {
+  var emoji = document.getElementById('new-cat-emoji').value || '🏷️';
+  var name = document.getElementById('new-cat-name').value.trim();
+  if (!name) { showToast('Enter a category name.', 'error'); return; }
+  var exists = tempCats.some(function(c){ return c.name.toLowerCase() === name.toLowerCase(); });
+  if (exists) { showToast('Already exists.', 'error'); return; }
+  tempCats.push({id: 'c' + Date.now(), name: name, emoji: emoji});
+  document.getElementById('new-cat-emoji').value = '🏷️';
+  document.getElementById('new-emj-btn').textContent = '🏷️';
+  document.getElementById('new-cat-name').value = '';
+  closeAllEp();
+  renderCatList();
+}
+function saveCatMgr() {
+  if (!tempCats.length) { showToast('Need at least one category.', 'error'); return; }
+  D.categories = tempCats;
+  save(); closeCatMgr();
+  showToast('✅ Categories saved!', 'success');
+}
+
+// ── SHOP MANAGER ───────────────────────────────────────────────────────────
+function openShopMgr() {
+  tempShops = JSON.parse(JSON.stringify(D.shops));
+  renderShopList();
+  document.getElementById('shop-modal').classList.add('open');
+}
+function closeShopMgr() { document.getElementById('shop-modal').classList.remove('open'); }
+function renderShopList() {
+  var html = '';
+  tempShops.forEach(function(s, i) {
+    html += '<div class="mgr-item">';
+    html += '<div class="mgr-item-top">';
+    html += '<span style="font-size:16px;">🏪</span>';
+    html += '<span class="mgr-item-lbl" id="shop-lbl-' + i + '">' + s + '</span>';
+    html += '<div class="mgr-actions">';
+    html += '<button class="btn-icon" onclick="toggleShopEdit(' + i + ')" title="Edit">✏️</button>';
+    html += '<button class="btn-icon del" onclick="removeTempShop(' + i + ')" title="Delete">🗑️</button>';
+    html += '</div></div>';
+    html += '<div class="mgr-edit-row" id="shop-edit-' + i + '">';
+    html += '<input class="mgr-name-inp" id="shop-inp-' + i + '" value="' + s + '" placeholder="Shop name" ';
+    html += 'oninput="tempShops[' + i + ']=this.value;document.getElementById(\'shop-lbl-' + i + '\').textContent=this.value;">';
+    html += '</div></div>';
+  });
+  document.getElementById('shop-mgr-list').innerHTML = html;
+}
+function toggleShopEdit(i) {
+  var row = document.getElementById('shop-edit-' + i);
+  var isOpen = row.classList.contains('open');
+  document.querySelectorAll('[id^="shop-edit-"]').forEach(function(e){ e.classList.remove('open'); });
+  if (!isOpen) {
+    row.classList.add('open');
+    setTimeout(function(){ var inp = document.getElementById('shop-inp-' + i); if(inp) inp.focus(); }, 50);
+  }
+}
+function removeTempShop(i) { tempShops.splice(i, 1); renderShopList(); }
+function addShop() {
+  var name = document.getElementById('new-shop-name').value.trim();
+  if (!name) { showToast('Enter a shop name.', 'error'); return; }
+  var exists = tempShops.some(function(s){ return s.toLowerCase() === name.toLowerCase(); });
+  if (exists) { showToast('Already exists.', 'error'); return; }
+  tempShops.push(name);
+  document.getElementById('new-shop-name').value = '';
+  renderShopList();
+}
+function saveShopMgr() {
+  if (!tempShops.length) { showToast('Need at least one shop.', 'error'); return; }
+  D.shops = tempShops;
+  save(); populateShopSelect(); closeShopMgr();
+  showToast('✅ Shops saved!', 'success');
+}
+
+// ── PAYMENT METHOD MANAGER ─────────────────────────────────────────────────
+function openPayMgr() {
+  tempPays = JSON.parse(JSON.stringify(D.payments));
+  renderPayList();
+  document.getElementById('pay-modal').classList.add('open');
+}
+function closePayMgr() { document.getElementById('pay-modal').classList.remove('open'); }
+function renderPayList() {
+  var groups = {};
+  tempPays.forEach(function(p, i) {
+    if (!groups[p.group]) groups[p.group] = [];
+    groups[p.group].push({p:p, i:i});
+  });
+  var html = '';
+  Object.keys(groups).forEach(function(g) {
+    html += '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 5px;padding-left:2px;">' + g + '</div>';
+    groups[g].forEach(function(obj) {
+      var i = obj.i; var p = obj.p;
+      html += '<div class="mgr-item">';
+      html += '<div class="mgr-item-top">';
+      html += '<span style="font-size:15px;">💳</span>';
+      html += '<span class="mgr-item-lbl" id="pay-lbl-' + i + '">' + p.name + '</span>';
+      html += '<div class="mgr-actions">';
+      html += '<button class="btn-icon" onclick="togglePayEdit(' + i + ')" title="Edit">✏️</button>';
+      html += '<button class="btn-icon del" onclick="removeTempPay(' + i + ')" title="Delete">🗑️</button>';
+      html += '</div></div>';
+      html += '<div class="mgr-edit-row" id="pay-edit-' + i + '">';
+      html += '<div style="display:flex;gap:7px;flex-wrap:wrap;">';
+      html += '<select id="pay-grp-inp-' + i + '" class="mgr-name-inp" style="width:auto;padding:7px 9px;" onchange="tempPays[' + i + '].group=this.value;">';
+      ['Credit Cards','Bank / UPI / Debit','Other'].forEach(function(g2) {
+        html += '<option value="' + g2 + '"' + (p.group===g2?' selected':'') + '>' + g2 + '</option>';
+      });
+      html += '</select>';
+      html += '<input class="mgr-name-inp" id="pay-inp-' + i + '" value="' + p.name + '" placeholder="Method name" style="flex:1;" ';
+      html += 'oninput="tempPays[' + i + '].name=this.value;document.getElementById(\'pay-lbl-' + i + '\').textContent=this.value;">';
+      html += '</div></div></div>';
+    });
+  });
+  document.getElementById('pay-mgr-list').innerHTML = html;
+}
+function togglePayEdit(i) {
+  var row = document.getElementById('pay-edit-' + i);
+  var isOpen = row.classList.contains('open');
+  document.querySelectorAll('[id^="pay-edit-"]').forEach(function(e){ e.classList.remove('open'); });
+  if (!isOpen) {
+    row.classList.add('open');
+    setTimeout(function(){ var inp = document.getElementById('pay-inp-' + i); if(inp) inp.focus(); }, 50);
+  }
+}
+function removeTempPay(i) { tempPays.splice(i, 1); renderPayList(); }
+function addPayMethod() {
+  var name = document.getElementById('new-pay-name').value.trim();
+  var group = document.getElementById('new-pay-group').value;
+  if (!name) { showToast('Enter a method name.', 'error'); return; }
+  var exists = tempPays.some(function(p){ return p.name.toLowerCase() === name.toLowerCase(); });
+  if (exists) { showToast('Already exists.', 'error'); return; }
+  tempPays.push({id: 'p' + Date.now(), group: group, name: name});
+  document.getElementById('new-pay-name').value = '';
+  renderPayList();
+}
+function savePayMgr() {
+  if (!tempPays.length) { showToast('Need at least one payment method.', 'error'); return; }
+  D.payments = tempPays;
+  save(); populatePaymentSelects(); closePayMgr();
+  showToast('✅ Payment methods saved!', 'success');
+}
+function delBillConfirm(id) {
+  var b = D.bills.find(function(x){ return x.id === id; });
+  if (!b) return;
+  pendingDel = {type:'bill', id:id};
+  document.getElementById('del-msg').textContent =
+    'Delete bill from ' + b.shop + ' on ' + fmtD(b.date) + ' (' + b.items.length + ' items)? Cannot be undone.';
+  document.getElementById('del-modal').classList.add('open');
+}
+function closeDelModal() { document.getElementById('del-modal').classList.remove('open'); pendingDel = {}; }
+function confirmDel() {
+  if (pendingDel.type === 'bill') {
+    D.bills = D.bills.filter(function(b){ return b.id !== pendingDel.id; });
+    save(); renderBills(); showToast('🗑️ Deleted.', 'info');
+  }
+  closeDelModal();
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+function allItems() {
+  var yr = document.getElementById('d-year').value;
+  var mn = document.getElementById('d-month').value;
+  var cat = document.getElementById('d-cat').value;
+  var itm = document.getElementById('d-item').value;
+  var brnd = document.getElementById('d-brand').value;
+  var result = [];
+  D.bills.forEach(function(b) {
+    var d = new Date(b.date + 'T00:00:00');
+    if (yr !== 'all' && d.getFullYear() != yr) return;
+    if (mn !== 'all' && MONTHS[d.getMonth()] !== mn) return;
+    b.items.forEach(function(i) {
+      if (cat !== 'all' && i.category !== cat) return;
+      if (itm !== 'all' && i.itemName !== itm) return;
+      if (brnd !== 'all' && i.brand !== brnd) return;
+      result.push(Object.assign({}, i, {billDate: b.date, shop: b.shop}));
+    });
+  });
+  return result;
+}
+
+function rebuildSel(id, opts, sel) {
+  var el = document.getElementById(id);
+  var first = el.options[0].cloneNode(true);
+  el.innerHTML = ''; el.appendChild(first);
+  opts.forEach(function(v) { var o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o); });
+  if (opts.indexOf(sel) !== -1) el.value = sel; else el.value = 'all';
+}
+
+function onDashFilter(changed) {
+  var yr = document.getElementById('d-year').value;
+  var mn = document.getElementById('d-month').value;
+  var cat = document.getElementById('d-cat').value;
+  var itm = document.getElementById('d-item').value;
+  var brnd = document.getElementById('d-brand').value;
+  var pool = [];
+  D.bills.forEach(function(b) {
+    var d = new Date(b.date + 'T00:00:00');
+    if (yr !== 'all' && d.getFullYear() != yr) return;
+    if (mn !== 'all' && MONTHS[d.getMonth()] !== mn) return;
+    b.items.forEach(function(i){ pool.push(i); });
+  });
+  var byCat = cat === 'all' ? pool : pool.filter(function(i){ return i.category === cat; });
+  var byItm = itm === 'all' ? byCat : byCat.filter(function(i){ return i.itemName === itm; });
+  var availCats = [], availItms = [], availBrnds = [];
+  pool.forEach(function(i){ if (availCats.indexOf(i.category) === -1) availCats.push(i.category); });
+  byCat.forEach(function(i){ if (availItms.indexOf(i.itemName) === -1) availItms.push(i.itemName); });
+  byItm.forEach(function(i){ if (i.brand && availBrnds.indexOf(i.brand) === -1) availBrnds.push(i.brand); });
+  availCats.sort(); availItms.sort(); availBrnds.sort();
+  rebuildSel('d-cat', availCats, cat);
+  rebuildSel('d-item', availItms, itm);
+  rebuildSel('d-brand', availBrnds, brnd);
+  renderDash();
+}
+
+function populateYears() {
+  var years = [];
+  D.bills.forEach(function(b){ var y = b.date.substr(0,4); if (years.indexOf(y) === -1) years.push(y); });
+  years.sort(function(a,b){ return b - a; });
+  var sel = document.getElementById('d-year');
+  var cur = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  years.forEach(function(y){ var o = document.createElement('option'); o.value = y; o.textContent = y; sel.appendChild(o); });
+  if (years.indexOf(cur) !== -1) sel.value = cur;
+}
+
+function resetDash() {
+  ['d-year','d-month','d-cat','d-item','d-brand'].forEach(function(id){ document.getElementById(id).value = 'all'; });
+  populateYears();
+  var pool = D.bills.flatMap ? D.bills.flatMap(function(b){ return b.items; }) :
+    [].concat.apply([], D.bills.map(function(b){ return b.items; }));
+  var cats = [], itms = [], brnds = [];
+  pool.forEach(function(i){
+    if (cats.indexOf(i.category) === -1) cats.push(i.category);
+    if (itms.indexOf(i.itemName) === -1) itms.push(i.itemName);
+    if (i.brand && brnds.indexOf(i.brand) === -1) brnds.push(i.brand);
+  });
+  cats.sort(); itms.sort(); brnds.sort();
+  rebuildSel('d-cat', cats, 'all');
+  rebuildSel('d-item', itms, 'all');
+  rebuildSel('d-brand', brnds, 'all');
+  renderDash();
+}
+
+function destroyCharts() {
+  Object.keys(dashCharts).forEach(function(k){ try{ dashCharts[k].destroy(); }catch(e){} });
+  dashCharts = {};
+}
+
+function renderDash() {
+  destroyCharts();
+  var items = allItems();
+  var el = document.getElementById('dash-content');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">📊</div><h3>No data for selected filters</h3><p>Adjust the filters above.</p></div>';
+    return;
+  }
+  var tot = items.reduce(function(s,i){ return s + i.amount; }, 0);
+  var uItems = [], uBrands = [];
+  items.forEach(function(i){
+    if (uItems.indexOf(i.itemName) === -1) uItems.push(i.itemName);
+    if (i.brand && uBrands.indexOf(i.brand) === -1) uBrands.push(i.brand);
+  });
+  var catMap = {}, monthMap = {};
+  items.forEach(function(i){
+    catMap[i.category] = (catMap[i.category] || 0) + i.amount;
+    var k = i.billDate.substr(0,7);
+    monthMap[k] = (monthMap[k] || 0) + i.amount;
+  });
+  var topCatEntry = Object.entries(catMap).sort(function(a,b){ return b[1]-a[1]; })[0];
+  var mKeys = Object.keys(monthMap).sort();
+  var mLabels = mKeys.map(function(k){ var p=k.split('-'); return MONTHS[parseInt(p[1])-1].substr(0,3)+' '+p[0].substr(2); });
+  var mVals = mKeys.map(function(k){ return monthMap[k]; });
+
+  // Item summary
+  var iMap = {};
+  items.forEach(function(i){
+    var k = i.itemName + '|||' + (i.brand||'');
+    if (!iMap[k]) iMap[k] = {itemName:i.itemName,brand:i.brand||'',category:i.category,count:0,totalQty:0,uom:i.uom,totalAmt:0,history:[]};
+    iMap[k].count++; iMap[k].totalQty += i.qty; iMap[k].totalAmt += i.amount;
+    iMap[k].history.push({date:i.billDate,shop:i.shop,qty:i.qty,amount:i.amount});
+  });
+  var iSumm = Object.values(iMap).sort(function(a,b){ return b.totalAmt - a.totalAmt; });
+
+  var singleItem = document.getElementById('d-item').value !== 'all';
+  var singleBrand = document.getElementById('d-brand').value !== 'all';
+  var showHist = singleItem || (singleBrand && iSumm.length <= 3);
+
+  // KPIs
+  var html = '<div class="kpi-row">';
+  html += '<div class="kpi"><div class="kpi-lbl">Total Spend</div><div class="kpi-val">₹' + Math.round(tot).toLocaleString('en-IN') + '</div><div class="kpi-sub">' + items.length + ' line items</div></div>';
+  html += '<div class="kpi"><div class="kpi-lbl">Unique Items</div><div class="kpi-val">' + uItems.length + '</div><div class="kpi-sub">' + uBrands.length + ' brand' + (uBrands.length!==1?'s':'') + '</div></div>';
+  html += '<div class="kpi"><div class="kpi-lbl">Top Category</div><div class="kpi-val" style="font-size:13px;line-height:1.3;">' + (topCatEntry?topCatEntry[0]:'—') + '</div><div class="kpi-sub">' + (topCatEntry?'₹'+Math.round(topCatEntry[1]).toLocaleString('en-IN'):'') + '</div></div>';
+  html += '<div class="kpi"><div class="kpi-lbl">Avg per Item</div><div class="kpi-val">₹' + Math.round(tot/items.length).toLocaleString('en-IN') + '</div><div class="kpi-sub">per line item</div></div>';
+  html += '</div>';
+
+  if (showHist) {
+    html += '<div class="chart-card full" style="margin-bottom:11px;"><div class="chart-ttl">📈 Price History — ';
+    html += (singleItem ? document.getElementById('d-item').value : document.getElementById('d-brand').value);
+    html += '</div><div class="chart-wrap"><canvas id="chart-hist"></canvas></div></div>';
+  } else {
+    html += '<div class="charts-grid">';
+    html += '<div class="chart-card full"><div class="chart-ttl">📅 Monthly Spend (₹)</div><div class="chart-wrap tall"><canvas id="chart-mo"></canvas></div></div>';
+    html += '<div class="chart-card"><div class="chart-ttl">🍩 By Category</div><div class="chart-wrap"><canvas id="chart-pie"></canvas></div></div>';
+    html += '<div class="chart-card"><div class="chart-ttl">📊 Category Breakdown</div><div class="chart-wrap"><canvas id="chart-catbar"></canvas></div></div>';
+    html += '</div>';
+  }
+
+  // Table
+  html += '<div class="tbl-card" style="margin-top:11px;">';
+  html += '<div class="tbl-hdr"><h3>' + (showHist?'Purchase History':'Item & Brand Summary') + '</h3><span>' + iSumm.length + ' rows</span></div>';
+  html += '<div class="tbl-wrap"><table>';
+  if (showHist) {
+    html += '<thead><tr><th>Date</th><th>Shop</th><th>Item</th><th>Brand</th><th>Qty</th><th>UOM</th><th>Amount (₹)</th><th>Unit Price (₹)</th></tr></thead><tbody>';
+    var histRows = [];
+    iSumm.forEach(function(s){
+      s.history.forEach(function(h){ histRows.push(Object.assign({},h,{itemName:s.itemName,brand:s.brand,uom:s.uom})); });
+    });
+    histRows.sort(function(a,b){ return a.date.localeCompare(b.date); });
+    histRows.forEach(function(h){
+      html += '<tr><td>' + fmtD(h.date) + '</td><td>' + h.shop + '</td><td>' + h.itemName + '</td><td>' + (h.brand||'—') + '</td>';
+      html += '<td>' + h.qty + '</td><td>' + h.uom + '</td>';
+      html += '<td style="text-align:right;">₹' + fmt(h.amount) + '</td>';
+      html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(h.amount/h.qty) + '</td></tr>';
+    });
+    var totQty = items.reduce(function(s,i){ return s+i.qty; }, 0);
+    html += '</tbody><tfoot><tr><td colspan="4">TOTALS / AVERAGE</td><td>' + totQty + '</td><td></td>';
+    html += '<td style="text-align:right;">₹' + fmt(tot) + '</td>';
+    html += '<td style="text-align:right;">₹' + fmt(tot/totQty) + ' avg</td></tr></tfoot>';
+  } else {
+    html += '<thead><tr><th>Item</th><th>Brand</th><th>Category</th><th>Purchases</th><th>Total Qty</th><th>UOM</th><th>Total (₹)</th><th>Avg Unit Price (₹)</th></tr></thead><tbody>';
+    iSumm.forEach(function(s){
+      html += '<tr><td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + s.itemName + '</td>';
+      html += '<td style="color:var(--muted);font-size:10px;">' + (s.brand||'—') + '</td>';
+      html += '<td>' + catBadge(s.category) + '</td>';
+      html += '<td style="text-align:center;">' + s.count + '</td>';
+      html += '<td style="text-align:right;">' + s.totalQty + '</td><td>' + s.uom + '</td>';
+      html += '<td style="text-align:right;font-weight:600;">₹' + fmt(s.totalAmt) + '</td>';
+      html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(s.totalAmt/s.totalQty) + '</td></tr>';
+    });
+    html += '</tbody><tfoot><tr><td>TOTALS</td><td></td><td></td>';
+    html += '<td style="text-align:center;">' + items.length + '</td><td></td><td></td>';
+    html += '<td style="text-align:right;">₹' + fmt(tot) + '</td>';
+    html += '<td style="text-align:right;">₹' + fmt(tot/items.length) + ' avg</td></tr></tfoot>';
+  }
+  html += '</table></div></div>';
+  el.innerHTML = html;
+
+  // Charts
+  if (showHist) {
+    var hd = [];
+    iSumm.forEach(function(s){ s.history.forEach(function(h){ hd.push(Object.assign({},h,{uom:s.uom})); }); });
+    hd.sort(function(a,b){ return a.date.localeCompare(b.date); });
+    dashCharts.hist = new Chart(document.getElementById('chart-hist'), {
+      type:'line',
+      data:{labels:hd.map(function(h){ return fmtD(h.date); }),
+        datasets:[{label:'Unit Price',data:hd.map(function(h){ return parseFloat((h.amount/h.qty).toFixed(2)); }),
+          borderColor:'#c9922a',backgroundColor:'rgba(201,146,42,.10)',borderWidth:2.5,fill:true,tension:.3,
+          pointBackgroundColor:'#c9922a',pointRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:function(c){ return '₹'+c.parsed.y.toFixed(2)+' per unit'; }}}},
+        scales:{y:{beginAtZero:false,ticks:{callback:function(v){ return '₹'+v; }}},x:{grid:{display:false}}}}
+    });
+  } else {
+    if (document.getElementById('chart-mo'))
+      dashCharts.mo = new Chart(document.getElementById('chart-mo'), {type:'bar',
+        data:{labels:mLabels,datasets:[{data:mVals,backgroundColor:'rgba(46,107,74,.75)',borderColor:'#2e6b4a',borderWidth:1.5,borderRadius:5}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+          tooltip:{callbacks:{label:function(c){ return '₹'+c.parsed.y.toLocaleString('en-IN'); }}}}  ,
+          scales:{y:{beginAtZero:true,ticks:{callback:function(v){ return '₹'+v.toLocaleString('en-IN'); }}},x:{grid:{display:false}}}}});
+    var cLabels = Object.keys(catMap).sort(function(a,b){ return catMap[b]-catMap[a]; });
+    var cVals = cLabels.map(function(c){ return catMap[c]; });
+    var cCols = cLabels.map(function(c){ return catCol(c); });
+    if (document.getElementById('chart-pie'))
+      dashCharts.pie = new Chart(document.getElementById('chart-pie'), {type:'doughnut',
+        data:{labels:cLabels,datasets:[{data:cVals,backgroundColor:cCols,borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:9}}}}});
+    if (document.getElementById('chart-catbar'))
+      dashCharts.catbar = new Chart(document.getElementById('chart-catbar'), {type:'bar',
+        data:{labels:cLabels.map(function(c){ return c.length>13?c.substr(0,12)+'…':c; }),datasets:[{data:cVals,backgroundColor:cCols,borderRadius:4}]},
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){ return '₹'+c.parsed.x.toLocaleString('en-IN'); }}}}  ,
+          scales:{x:{beginAtZero:true,ticks:{callback:function(v){ return '₹'+(v/1000).toFixed(0)+'k'; }}},y:{grid:{display:false}}}}});
+  }
+}
+
+// ── PAGE ROUTING ───────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  var pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  var btn = document.getElementById('nav-' + name);
+  if (btn) btn.classList.add('active');
+  if (name === 'bills') renderBills();
+  if (name === 'dashboard') { populateYears(); resetDash(); }
+}
+
+// ── EXPORT / IMPORT ────────────────────────────────────────────────────────
+function exportData() {
+  if (!D.bills.length) { showToast('No data.', 'error'); return; }
+  var blob = new Blob([JSON.stringify(Object.assign({}, D, {exportedAt:new Date().toISOString()}), null, 2)], {type:'application/json'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'purchase-register-' + new Date().toISOString().split('T')[0] + '.json'; a.click();
+  showToast('✅ Exported!', 'success');
+}
+function importData(e) {
+  var file = e.target.files[0]; if (!file) return;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    try {
+      var obj = JSON.parse(ev.target.result);
+      var imported = obj.bills || obj;
+      if (!Array.isArray(imported)) throw new Error();
+      var added = 0;
+      imported.forEach(function(b){ if (!D.bills.find(function(x){ return x.id===b.id; })){ D.bills.push(b); added++; } });
+      if (obj.categories && Array.isArray(obj.categories)) D.categories = obj.categories;
+      if (obj.shops && Array.isArray(obj.shops)) D.shops = obj.shops;
+      if (obj.payments && Array.isArray(obj.payments)) D.payments = obj.payments;
+      save(); renderBills(); populateShopSelect(); populatePaymentSelects();
+      showToast('✅ Imported ' + added + ' bill' + (added!==1?'s':'') + '!', 'success');
+    } catch(err) { showToast('❌ Invalid file.', 'error'); }
+    e.target.value = '';
+  };
+  r.readAsText(file);
+}
+
+// ── URL DEEP LINK ──────────────────────────────────────────────────────────
+function checkUrl() {
+  var p = new URLSearchParams(window.location.search);
+  if (p.get('page') === 'dashboard') {
+    showPage('dashboard');
+    var date = p.get('date');
+    if (date) {
+      var d = new Date(date + 'T00:00:00');
+      setTimeout(function(){
+        var sy = document.getElementById('d-year');
+        var yr = d.getFullYear().toString();
+        for (var i=0;i<sy.options.length;i++){ if(sy.options[i].value===yr){ sy.value=yr; break; } }
+        document.getElementById('d-month').value = MONTHS[d.getMonth()];
+        onDashFilter('month');
+      }, 200);
+    }
+  }
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  loadData();
+  populateShopSelect();
+  populatePaymentSelects();
+  document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
+  if (window.location.search) checkUrl();
+  else renderBills();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Electricity Bills Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #0d1b2a;
+    --navy2: #1b2e45;
+    --navy3: #243b55;
+    --gold: #c9a84c;
+    --gold2: #e8c96e;
+    --gold-light: #f5e4a8;
+    --cream: #fdf8ee;
+    --white: #ffffff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --border: #e0d9c8;
+    --shadow: 0 4px 24px rgba(13,27,42,0.10);
+    --shadow-lg: 0 8px 40px rgba(13,27,42,0.18);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ========== HEADER ========== */
+  .app-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy3) 100%);
+    color: var(--white);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+  .app-header .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .app-header .brand-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .app-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gold2);
+    letter-spacing: 0.3px;
+  }
+  .app-header .subtitle {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 1px;
+  }
+  .header-nav {
+    display: flex;
+    gap: 8px;
+  }
+  .nav-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .nav-btn.active, .nav-btn:hover {
+    background: var(--gold);
+    color: var(--navy);
+  }
+  .nav-btn:not(.active) {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.8);
+  }
+
+  /* ========== PAGES ========== */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ========== FORM PAGE ========== */
+  .form-container {
+    max-width: 700px;
+    margin: 32px auto;
+    padding: 0 16px;
+  }
+  .form-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .form-card-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy3) 100%);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .form-card-header h2 {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold2);
+    font-size: 20px;
+  }
+  .form-card-header p {
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .form-body {
+    padding: 28px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: #fafaf8;
+    transition: all 0.2s;
+    outline: none;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    border-color: var(--gold);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.15);
+  }
+  .form-group textarea { min-height: 72px; resize: vertical; }
+  .diff-display {
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1.5px solid transparent;
+    background: #f0f4f8;
+    color: var(--text-muted);
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+  }
+  .diff-display.positive { background: #ecfdf5; color: #059669; border-color: #a7f3d0; }
+  .diff-display.negative { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  .diff-display.zero { background: #f0f9ff; color: #0369a1; border-color: #bae6fd; }
+
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 12px 28px;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    color: var(--navy);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(201,168,76,0.4); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1.5px solid var(--border);
+  }
+  .btn-secondary:hover { background: #f5f5f3; }
+  .btn-danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1.5px solid #fecaca;
+  }
+  .btn-danger:hover { background: #fecaca; }
+
+  /* ========== RECORDS TABLE ========== */
+  .records-section {
+    max-width: 700px;
+    margin: 24px auto 40px;
+    padding: 0 16px;
+  }
+  .records-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .records-header h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--navy);
+  }
+  .records-count {
+    background: var(--navy);
+    color: var(--gold2);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+    font-size: 13px;
+  }
+  table th {
+    background: var(--navy);
+    color: var(--gold-light);
+    padding: 11px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    white-space: nowrap;
+  }
+  table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0ede6;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  table tr:last-child td { border-bottom: none; }
+  table tr:hover td { background: #fdf8ee; }
+  .diff-pos { color: #059669; font-weight: 600; }
+  .diff-neg { color: #dc2626; font-weight: 600; }
+  .diff-zero { color: #0369a1; font-weight: 600; }
+  .action-btns { display: flex; gap: 6px; }
+  .btn-icon {
+    padding: 5px 9px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+    background: #f5f5f3;
+  }
+  .btn-icon:hover { background: #e8e8e4; }
+  .btn-icon.del:hover { background: #fee2e2; color: #dc2626; }
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state h4 { font-size: 16px; margin-bottom: 6px; color: var(--navy); }
+
+  /* ========== TOAST ========== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--navy);
+    color: var(--white);
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 320px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-left: 4px solid var(--green); }
+  .toast.error { border-left: 4px solid var(--red); }
+  .toast.info { border-left: 4px solid var(--gold); }
+
+  /* ========== DASHBOARD ========== */
+  .dashboard-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 16px 48px;
+  }
+  .dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .dash-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    color: var(--navy);
+  }
+  .dash-title span { color: var(--gold); }
+  .dash-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-select {
+    padding: 8px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    background: var(--white);
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-select:focus { border-color: var(--gold); }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+    border-top: 3px solid var(--gold);
+  }
+  .kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 60px; height: 60px;
+    background: radial-gradient(circle at top right, rgba(201,168,76,0.12), transparent 70%);
+  }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .kpi-sub .up { color: #dc2626; }
+  .kpi-sub .dn { color: #059669; }
+
+  /* Charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .chart-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    color: var(--navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-wrap.tall { height: 300px; }
+
+  /* Detail table in dashboard */
+  .dash-table-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-top: 18px;
+  }
+  .dash-table-header {
+    background: var(--navy);
+    color: var(--gold2);
+    padding: 14px 20px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .dash-table-header span { font-family: 'DM Sans', sans-serif; font-size: 12px; color: rgba(255,255,255,0.5); }
+
+  /* Data management */
+  .data-mgmt {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 28px;
+    margin: 0 16px 16px;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .data-mgmt-info { font-size: 13px; color: var(--text-muted); }
+  .data-mgmt-info strong { color: var(--navy); }
+  .data-mgmt-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .no-data {
+    text-align: center;
+    padding: 64px 20px;
+    color: var(--text-muted);
+  }
+  .no-data .icon { font-size: 48px; margin-bottom: 16px; }
+  .no-data h3 { font-size: 18px; color: var(--navy); margin-bottom: 8px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(13,27,42,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 28px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.92) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .modal h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Mobile responsive */
+  @media (max-width: 640px) {
+    .app-header h1 { font-size: 14px; }
+    .nav-btn { padding: 7px 12px; font-size: 12px; }
+    .form-row { grid-template-columns: 1fr; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.full { grid-column: 1; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .kpi-value { font-size: 20px; }
+    .data-mgmt { flex-direction: column; align-items: flex-start; }
+    table { font-size: 12px; }
+    table th, table td { padding: 8px 10px; }
+    .form-actions { flex-direction: column; }
+    .btn { width: 100%; justify-content: center; }
+    .brand-icon { display: none; }
+  }
+  @media (max-width: 400px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-icon">⚡</div>
+    <div>
+      <h1>Electricity Bills Register</h1>
+      <div class="subtitle">Household · CESC Limited</div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showPage('form')">✏️ Entry</button>
+    <button class="nav-btn" onclick="showPage('dashboard')">📊 Dashboard</button>
+  </nav>
+</header>
+
+<!-- ===================== FORM PAGE ===================== -->
+<div id="page-form" class="page active">
+  <div class="form-container">
+    <div class="form-card">
+      <div class="form-card-header">
+        <div>
+          <h2 id="form-heading">Add New Bill Entry</h2>
+          <p id="form-subheading">Consumer No: 05319052457 · Customer ID: 05001014959</p>
+        </div>
+      </div>
+      <div class="form-body">
+        <input type="hidden" id="edit-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Year *</label>
+            <select id="year">
+              <option value="">Select Year</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Month *</label>
+            <select id="month">
+              <option value="">Select Month</option>
+              <option>January</option><option>February</option><option>March</option>
+              <option>April</option><option>May</option><option>June</option>
+              <option>July</option><option>August</option><option>September</option>
+              <option>October</option><option>November</option><option>December</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Units Consumed *</label>
+            <input type="number" id="units" min="0" placeholder="e.g. 290" oninput="calcDiff()">
+          </div>
+          <div class="form-group">
+            <label>Previous Year (Same Month) Units</label>
+            <input type="number" id="prev-units" min="0" placeholder="e.g. 281" oninput="calcDiff()">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Net Amount (₹) *</label>
+            <input type="number" id="net-amount" min="0" step="0.01" placeholder="e.g. 2285.78">
+          </div>
+          <div class="form-group">
+            <label>Net Amount for e-Payment (₹)</label>
+            <input type="number" id="net-epay" min="0" step="0.01" placeholder="e.g. 2260.00">
+          </div>
+        </div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label>Remarks</label>
+            <textarea id="remarks" placeholder="Optional notes about this bill..."></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveEntry()">
+            <span id="save-btn-text">💾 Save Entry</span>
+          </button>
+          <button class="btn btn-secondary" onclick="resetForm()">✕ Clear Form</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Records Table -->
+  <div class="records-section">
+    <div class="records-header">
+      <h3>All Records</h3>
+      <span class="records-count" id="record-count">0 entries</span>
+    </div>
+    <div id="records-container"></div>
+  </div>
+
+  <!-- Data Management -->
+  <div class="data-mgmt">
+    <div class="data-mgmt-info">
+      <strong>💾 Data Storage:</strong> Saved in browser's local storage.<br>
+      Export regularly to back up your data.
+    </div>
+    <div class="data-mgmt-btns">
+      <button class="btn btn-secondary" onclick="exportData()" style="padding:9px 16px;font-size:13px;">⬇️ Export JSON</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="padding:9px 16px;font-size:13px;">⬆️ Import JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DASHBOARD PAGE ===================== -->
+<div id="page-dashboard" class="page">
+  <div class="dashboard-container">
+    <div class="dash-header">
+      <div>
+        <div class="dash-title">Bills <span>Dashboard</span></div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Interactive analysis · CESC Electricity</div>
+      </div>
+      <div class="dash-filters">
+        <select class="filter-select" id="dash-year" onchange="renderDashboard()">
+          <option value="all">All Years</option>
+        </select>
+        <select class="filter-select" id="dash-month" onchange="renderDashboard()">
+          <option value="all">All Months</option>
+          <option>January</option><option>February</option><option>March</option>
+          <option>April</option><option>May</option><option>June</option>
+          <option>July</option><option>August</option><option>September</option>
+          <option>October</option><option>November</option><option>December</option>
+        </select>
+        <button class="btn btn-secondary" onclick="resetDashFilters()" style="padding:8px 14px;font-size:12px;">Reset</button>
+      </div>
+    </div>
+
+    <div id="dash-content"></div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <h3>🗑️ Delete Entry</h3>
+    <p>Are you sure you want to delete this bill entry? This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== DATA LAYER ====================
+const STORAGE_KEY = 'electricity_bills_v1';
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_IDX = Object.fromEntries(MONTHS.map((m,i)=>[m,i]));
+
+let bills = [];
+let pendingDeleteId = null;
+let editMode = false;
+let charts = {};
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    bills = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(bills)) bills = [];
+  } catch { bills = []; }
+  // Load seed data if empty
+  if (bills.length === 0) seedData();
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
+}
+
+function seedData() {
+  const seed = [
+    {id:genId(),year:2025,month:'April',units:441,prevUnits:617,netAmt:4134.19,netEpay:4090.00,remarks:''},
+    {id:genId(),year:2025,month:'May',units:521,prevUnits:682,netAmt:5003.39,netEpay:4950.00,remarks:''},
+    {id:genId(),year:2025,month:'June',units:305,prevUnits:447,netAmt:2660.58,netEpay:2630.00,remarks:''},
+    {id:genId(),year:2025,month:'July',units:431,prevUnits:449,netAmt:4026.65,netEpay:3980.00,remarks:''},
+    {id:genId(),year:2025,month:'August',units:347,prevUnits:341,netAmt:3118.59,netEpay:3090.00,remarks:''},
+    {id:genId(),year:2025,month:'September',units:397,prevUnits:523,netAmt:3572.68,netEpay:3540.00,remarks:''},
+    {id:genId(),year:2025,month:'October',units:270,prevUnits:304,netAmt:2119.85,netEpay:2090.00,remarks:''},
+    {id:genId(),year:2025,month:'November',units:145,prevUnits:220,netAmt:1109.05,netEpay:1090.00,remarks:''},
+    {id:genId(),year:2025,month:'December',units:366,prevUnits:276,netAmt:3323.00,netEpay:3290.00,remarks:''},
+    {id:genId(),year:2026,month:'January',units:290,prevUnits:281,netAmt:2285.78,netEpay:2260.00,remarks:''},
+  ];
+  bills = seed;
+  saveData();
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2,6);
+}
+
+// ==================== YEARS ====================
+function getYearRange() {
+  const cur = new Date().getFullYear();
+  const years = [];
+  for (let y = cur + 1; y >= 2020; y--) years.push(y);
+  return years;
+}
+
+function populateYearDropdowns() {
+  const years = getYearRange();
+  const selects = ['year', 'dash-year'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    const firstOpt = sel.options[0];
+    sel.innerHTML = '';
+    sel.appendChild(firstOpt);
+    years.forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      sel.appendChild(o);
+    });
+  });
+  // Default year select to current
+  document.getElementById('year').value = new Date().getFullYear();
+}
+
+// ==================== FORM ====================
+function calcDiff() {
+  // Difference is shown only in the Dashboard
+}
+
+function resetForm() {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('year').value = new Date().getFullYear();
+  document.getElementById('month').value = '';
+  document.getElementById('units').value = '';
+  document.getElementById('prev-units').value = '';
+  document.getElementById('net-amount').value = '';
+  document.getElementById('net-epay').value = '';
+  document.getElementById('remarks').value = '';
+  document.getElementById('form-heading').textContent = 'Add New Bill Entry';
+  document.getElementById('save-btn-text').textContent = '💾 Save Entry';
+  editMode = false;
+}
+
+function saveEntry() {
+  const year = parseInt(document.getElementById('year').value);
+  const month = document.getElementById('month').value;
+  const units = parseFloat(document.getElementById('units').value);
+  const prevUnits = parseFloat(document.getElementById('prev-units').value);
+  const netAmt = parseFloat(document.getElementById('net-amount').value);
+  const netEpay = parseFloat(document.getElementById('net-epay').value);
+  const remarks = document.getElementById('remarks').value.trim();
+
+  if (!year || !month || isNaN(units) || isNaN(netAmt)) {
+    showToast('⚠️ Please fill in Year, Month, Units and Net Amount.', 'error');
+    return;
+  }
+
+  const editId = document.getElementById('edit-id').value;
+
+  if (editId) {
+    const idx = bills.findIndex(b => b.id === editId);
+    if (idx !== -1) {
+      bills[idx] = { id: editId, year, month, units, prevUnits: isNaN(prevUnits) ? null : prevUnits, netAmt, netEpay: isNaN(netEpay) ? null : netEpay, remarks };
+      showToast('✅ Entry updated successfully!', 'success');
+    }
+  } else {
+    // Check for duplicate
+    const dup = bills.find(b => b.year === year && b.month === month);
+    if (dup) {
+      showToast('⚠️ Entry for ' + month + ' ' + year + ' already exists. Edit that entry instead.', 'error');
+      return;
+    }
+    bills.push({ id: genId(), year, month, units, prevUnits: isNaN(prevUnits) ? null : prevUnits, netAmt, netEpay: isNaN(netEpay) ? null : netEpay, remarks });
+    showToast('✅ Entry saved successfully!', 'success');
+  }
+
+  saveData();
+  resetForm();
+  renderRecords();
+}
+
+function editEntry(id) {
+  const b = bills.find(b => b.id === id);
+  if (!b) return;
+  document.getElementById('edit-id').value = b.id;
+  document.getElementById('year').value = b.year;
+  document.getElementById('month').value = b.month;
+  document.getElementById('units').value = b.units;
+  document.getElementById('prev-units').value = b.prevUnits ?? '';
+  document.getElementById('net-amount').value = b.netAmt;
+  document.getElementById('net-epay').value = b.netEpay ?? '';
+  document.getElementById('remarks').value = b.remarks || '';
+  calcDiff();
+  document.getElementById('form-heading').textContent = 'Edit Entry — ' + b.month + ' ' + b.year;
+  document.getElementById('save-btn-text').textContent = '✏️ Update Entry';
+  editMode = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteEntry(id) {
+  pendingDeleteId = id;
+  document.getElementById('delete-modal').classList.add('open');
+}
+
+function confirmDelete() {
+  if (pendingDeleteId) {
+    bills = bills.filter(b => b.id !== pendingDeleteId);
+    saveData();
+    renderRecords();
+    showToast('🗑️ Entry deleted.', 'info');
+    pendingDeleteId = null;
+  }
+  closeModal();
+}
+
+function closeModal() {
+  document.getElementById('delete-modal').classList.remove('open');
+  pendingDeleteId = null;
+}
+
+// ==================== RECORDS TABLE ====================
+function sortedBills() {
+  return [...bills].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return MONTH_IDX[b.month] - MONTH_IDX[a.month];
+  });
+}
+
+function renderRecords() {
+  const container = document.getElementById('records-container');
+  const count = document.getElementById('record-count');
+  count.textContent = bills.length + ' entr' + (bills.length === 1 ? 'y' : 'ies');
+
+  if (bills.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h4>No entries yet</h4><p>Add your first bill entry using the form above.</p></div>`;
+    return;
+  }
+
+  const rows = sortedBills().map(b => {
+    const diff = (b.prevUnits !== null && b.units !== null) ? b.units - b.prevUnits : null;
+    const diffHtml = diff === null ? '—' : `<span class="${diff > 0 ? 'diff-pos' : diff < 0 ? 'diff-neg' : 'diff-zero'}">${diff > 0 ? '+' : ''}${diff}</span>`;
+    return `<tr>
+      <td>${b.year}</td>
+      <td>${b.month}</td>
+      <td>${b.units}</td>
+      <td>${b.prevUnits ?? '—'}</td>
+      <td>${diffHtml}</td>
+      <td>₹${fmt(b.netAmt)}</td>
+      <td>${b.netEpay ? '₹' + fmt(b.netEpay) : '—'}</td>
+      <td style="max-width:120px;white-space:normal;font-size:12px;color:var(--text-muted)">${b.remarks || '—'}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-icon" onclick="editEntry('${b.id}')" title="Edit">✏️</button>
+          <button class="btn-icon del" onclick="deleteEntry('${b.id}')" title="Delete">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `<div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Year</th><th>Month</th><th>Units</th><th>Prev.Yr Units</th>
+        <th>Diff.</th><th>Net Amt</th><th>e-Pay Amt</th><th>Remarks</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ==================== DASHBOARD ====================
+function filteredBills() {
+  const yr = document.getElementById('dash-year').value;
+  const mn = document.getElementById('dash-month').value;
+  return [...bills].filter(b =>
+    (yr === 'all' || b.year == yr) &&
+    (mn === 'all' || b.month === mn)
+  ).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return MONTH_IDX[a.month] - MONTH_IDX[b.month];
+  });
+}
+
+function resetDashFilters() {
+  document.getElementById('dash-year').value = 'all';
+  document.getElementById('dash-month').value = 'all';
+  renderDashboard();
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
+  charts = {};
+}
+
+function renderDashboard() {
+  destroyCharts();
+  const data = filteredBills();
+  const container = document.getElementById('dash-content');
+
+  if (data.length === 0) {
+    container.innerHTML = `<div class="no-data"><div class="icon">📊</div><h3>No data to display</h3><p>Add bill entries or adjust your filters.</p></div>`;
+    return;
+  }
+
+  const labels = data.map(b => b.month.substr(0,3) + ' ' + b.year);
+  const unitsArr = data.map(b => b.units);
+  const prevUnitsArr = data.map(b => b.prevUnits);
+  const netAmtArr = data.map(b => b.netAmt);
+  const netEpayArr = data.map(b => b.netEpay);
+
+  // KPIs
+  const totalUnits = unitsArr.reduce((s,v) => s + (v||0), 0);
+  const totalAmt = netAmtArr.reduce((s,v) => s + (v||0), 0);
+  const avgAmt = totalAmt / data.length;
+  const maxAmt = Math.max(...netAmtArr);
+  const maxAmtEntry = data[netAmtArr.indexOf(maxAmt)];
+  const minAmt = Math.min(...netAmtArr);
+  const minAmtEntry = data[netAmtArr.indexOf(minAmt)];
+  const avgUnits = totalUnits / data.length;
+
+  // Savings (e-pay vs net)
+  let savings = 0;
+  data.forEach(b => { if (b.netEpay && b.netAmt) savings += b.netAmt - b.netEpay; });
+
+  // Cumulative difference
+  let cumDiff = 0, cumDiffEntries = 0;
+  data.forEach(b => { if (b.prevUnits !== null && b.units !== null) { cumDiff += b.units - b.prevUnits; cumDiffEntries++; } });
+  const cumDiffColor = cumDiff > 0 ? '#dc2626' : cumDiff < 0 ? '#059669' : '#0369a1';
+  const cumDiffLabel = cumDiff > 0 ? '\u25b2 Higher than prev. year' : cumDiff < 0 ? '\u25bc Lower than prev. year' : '= Same as prev. year';
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Units</div>
+        <div class="kpi-value">${totalUnits.toLocaleString()}</div>
+        <div class="kpi-sub">Avg <strong>${Math.round(avgUnits)}</strong>/mo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Amount</div>
+        <div class="kpi-value">&#8377;${Math.round(totalAmt).toLocaleString()}</div>
+        <div class="kpi-sub">Avg &#8377;<strong>${Math.round(avgAmt).toLocaleString()}</strong>/mo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Cumulative Difference</div>
+        <div class="kpi-value" style="color:${cumDiffColor}">${cumDiffEntries > 0 ? (cumDiff > 0 ? '+' : '') + cumDiff.toLocaleString() : '&#8212;'}</div>
+        <div class="kpi-sub" style="color:${cumDiffColor}">${cumDiffEntries > 0 ? cumDiffLabel + ' (' + cumDiffEntries + ' mo)' : 'No comparison data'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Highest Bill</div>
+        <div class="kpi-value">&#8377;${maxAmt.toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+        <div class="kpi-sub">${maxAmtEntry.month.substr(0,3)} ${maxAmtEntry.year} &middot; <strong>${maxAmtEntry.units}</strong> units</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Lowest Bill</div>
+        <div class="kpi-value">&#8377;${minAmt.toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+        <div class="kpi-sub">${minAmtEntry.month.substr(0,3)} ${minAmtEntry.year} &middot; <strong>${minAmtEntry.units}</strong> units</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">e-Pay Savings</div>
+        <div class="kpi-value">&#8377;${Math.round(savings).toLocaleString()}</div>
+        <div class="kpi-sub">Paying online saves money</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Entries Shown</div>
+        <div class="kpi-value">${data.length}</div>
+        <div class="kpi-sub">of ${bills.length} total records</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card full">
+        <div class="chart-title">⚡ Monthly Units Consumed — Current vs Previous Year</div>
+        <div class="chart-wrap tall"><canvas id="chart-units"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">💰 Monthly Bill Amount (₹)</div>
+        <div class="chart-wrap"><canvas id="chart-amount"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">📉 Units Difference vs Prev. Year</div>
+        <div class="chart-wrap"><canvas id="chart-diff"></canvas></div>
+      </div>
+    </div>
+
+    <div class="dash-table-card">
+      <div class="dash-table-header">
+        Detailed Records
+        <span>${data.length} entries</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Year</th><th>Month</th><th>Units</th><th>Prev Yr</th>
+            <th>Diff</th><th>Net Amt</th><th>e-Pay Amt</th><th>Savings</th><th>Remarks</th>
+          </tr></thead>
+          <tbody>
+            ${data.map(b => {
+              const diff = (b.prevUnits !== null) ? b.units - b.prevUnits : null;
+              const sv = (b.netEpay && b.netAmt) ? (b.netAmt - b.netEpay).toFixed(2) : null;
+              return `<tr>
+                <td>${b.year}</td>
+                <td>${b.month}</td>
+                <td>${b.units}</td>
+                <td>${b.prevUnits ?? '—'}</td>
+                <td>${diff === null ? '—' : `<span class="${diff>0?'diff-pos':diff<0?'diff-neg':'diff-zero'}">${diff>0?'+':''}${diff}</span>`}</td>
+                <td>₹${fmt(b.netAmt)}</td>
+                <td>${b.netEpay ? '₹'+fmt(b.netEpay) : '—'}</td>
+                <td>${sv ? '<span style="color:#059669;font-weight:600;">₹'+sv+'</span>' : '—'}</td>
+                <td style="font-size:12px;color:var(--text-muted);max-width:100px;white-space:normal">${b.remarks||'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--navy);color:var(--gold-light);font-weight:700;font-size:13px;">
+              <td colspan="2" style="padding:11px 14px;text-align:center;letter-spacing:0.8px;font-size:12px;">TOTALS</td>
+              <td style="padding:11px 14px;">${data.reduce((s,b)=>s+(b.units||0),0).toLocaleString()}</td>
+              <td style="padding:11px 14px;">${data.reduce((s,b)=>s+(b.prevUnits||0),0).toLocaleString()}</td>
+              <td style="padding:11px 14px;">${(()=>{ const t=data.filter(b=>b.prevUnits!==null).reduce((s,b)=>s+(b.units-b.prevUnits),0); return (t>0?'+':'')+t.toLocaleString(); })()}</td>
+              <td style="padding:11px 14px;">&#8377;${data.reduce((s,b)=>s+(b.netAmt||0),0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+              <td style="padding:11px 14px;">&#8377;${data.reduce((s,b)=>s+(b.netEpay||0),0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+              <td style="padding:11px 14px;color:#2ecc71;">&#8377;${data.reduce((s,b)=>s+(b.netAmt&&b.netEpay?b.netAmt-b.netEpay:0),0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+              <td style="padding:11px 14px;"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Chart colours
+  const gold = '#c9a84c';
+  const navy = '#1b2e45';
+  const green = '#2ecc71';
+  const red = '#e74c3c';
+  const blue = '#3498db';
+
+  // Units Chart
+  const hasComp = data.some(b => b.prevUnits !== null);
+  const datasets = [{
+    label: 'Current Year Units',
+    data: unitsArr,
+    backgroundColor: 'rgba(201,168,76,0.75)',
+    borderColor: gold,
+    borderWidth: 2,
+    borderRadius: 6,
+  }];
+  if (hasComp) {
+    datasets.push({
+      label: 'Previous Year Units',
+      data: prevUnitsArr,
+      backgroundColor: 'rgba(27,46,69,0.55)',
+      borderColor: navy,
+      borderWidth: 2,
+      borderRadius: 6,
+    });
+  }
+  charts.units = new Chart(document.getElementById('chart-units'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + ' units' } } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f0ede6' } }, x: { grid: { display: false } } }
+    }
+  });
+
+  // Amount Chart
+  charts.amount = new Chart(document.getElementById('chart-amount'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Net Amount', data: netAmtArr, borderColor: gold, backgroundColor: 'rgba(201,168,76,0.12)', borderWidth: 2.5, fill: true, tension: 0.4, pointBackgroundColor: gold, pointRadius: 4 },
+        { label: 'e-Pay Amount', data: netEpayArr, borderColor: blue, backgroundColor: 'transparent', borderWidth: 1.5, borderDash: [4,4], tension: 0.4, pointRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: ctx => '₹' + ctx.parsed.y.toLocaleString('en-IN') } } },
+      scales: { y: { beginAtZero: false, grid: { color: '#f0ede6' }, ticks: { callback: v => '₹'+v.toLocaleString('en-IN') } }, x: { grid: { display: false } } }
+    }
+  });
+
+  // Diff Chart
+  const diffData = data.map(b => b.prevUnits !== null ? b.units - b.prevUnits : null);
+  charts.diff = new Chart(document.getElementById('chart-diff'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Difference (units)',
+        data: diffData,
+        backgroundColor: diffData.map(v => v === null ? '#ccc' : v > 0 ? 'rgba(231,76,60,0.7)' : v < 0 ? 'rgba(46,204,113,0.7)' : 'rgba(52,152,219,0.7)'),
+        borderColor: diffData.map(v => v === null ? '#bbb' : v > 0 ? red : v < 0 ? green : blue),
+        borderWidth: 1.5, borderRadius: 5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => (ctx.parsed.y > 0 ? '+' : '') + ctx.parsed.y + ' units' } } },
+      scales: {
+        y: { grid: { color: '#f0ede6' }, ticks: { callback: v => (v>0?'+':'')+v } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ==================== IMPORT/EXPORT ====================
+function exportData() {
+  if (bills.length === 0) { showToast('No data to export.', 'error'); return; }
+  const blob = new Blob([JSON.stringify({ bills, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'electricity-bills-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Data exported successfully!', 'success');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const obj = JSON.parse(ev.target.result);
+      const imported = Array.isArray(obj) ? obj : (obj.bills || []);
+      if (!imported.length) throw new Error('No data');
+      // Merge: add entries not already present
+      let added = 0;
+      imported.forEach(b => {
+        if (!bills.find(x => x.year == b.year && x.month === b.month)) {
+          bills.push({ ...b, id: b.id || genId() });
+          added++;
+        }
+      });
+      saveData();
+      renderRecords();
+      showToast(`✅ Imported ${added} new entr${added===1?'y':'ies'}.`, 'success');
+    } catch { showToast('❌ Invalid file. Please use a valid export file.', 'error'); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ==================== UI HELPERS ====================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.nav-btn[onclick*="${name}"]`).classList.add('active');
+  if (name === 'dashboard') {
+    populateDashYears();
+    renderDashboard();
+  }
+}
+
+function populateDashYears() {
+  const years = [...new Set(bills.map(b => b.year))].sort((a,b) => b-a);
+  const sel = document.getElementById('dash-year');
+  const cur = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  years.forEach(y => {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function fmt(n) {
+  return n !== null && n !== undefined ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  populateYearDropdowns();
+  renderRecords();
+});
+</script>
+</body>
+</html>
