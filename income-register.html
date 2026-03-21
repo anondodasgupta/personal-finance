@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Income Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --deep:#0f2318;--dark:#1a3828;--mid:#2e6b4a;--light:#4a9068;
+  --cream:#f5f0e8;--card:#fefcf8;
+  --gold:#c47c2b;--gold-lt:#f0c060;--gold-pale:#fef9ec;
+  --teal:#0d9488;--teal-lt:#5eead4;
+  --blue:#1d4ed8;--blue-lt:#93c5fd;
+  --purple:#7c3aed;--purple-lt:#c4b5fd;
+  --text:#1a2820;--muted:#5a7060;--border:#dde0d4;
+  --red:#dc2626;--green:#16a34a;
+  --shadow:0 2px 16px rgba(15,35,24,.09);--shadow-lg:0 6px 32px rgba(15,35,24,.16);
+  --r:14px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(135deg,var(--deep),var(--dark));color:#fff;
+  display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+  min-height:60px;flex-wrap:wrap;gap:6px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.35);}
+.hdr-brand{display:flex;align-items:center;gap:9px;padding:10px 0;}
+.hdr-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold-lt));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.hdr h1{font-family:'Fraunces',serif;font-size:16px;color:var(--gold-lt);}
+.hdr-sub{font-size:10px;color:rgba(255,255,255,.45);margin-top:1px;}
+.hdr-nav{display:flex;gap:5px;padding:6px 0;flex-wrap:nowrap;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.hdr-nav::-webkit-scrollbar{display:none;}
+.nav-btn{padding:6px 11px;border-radius:7px;border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;transition:all .2s;
+  white-space:nowrap;flex-shrink:0;}
+.nav-btn.active,.nav-btn:hover{background:var(--gold);color:#fff;}
+.nav-btn:not(.active){background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);}
+@media(max-width:600px){
+  .hdr{flex-direction:column;align-items:flex-start;padding:8px 14px;}
+  .hdr-brand{padding:4px 0;}
+  .hdr-nav{width:100%;padding:0 0 8px;}
+}
+
+/* ── PAGES ── */
+.page{display:none;}.page.active{display:block;}
+
+/* ── TABS (within pages) ── */
+.tab-bar{display:flex;gap:0;background:var(--card);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--border);margin-bottom:13px;}
+.tab-btn{flex:1;padding:11px 8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;
+  font-size:12px;font-weight:600;background:transparent;color:var(--muted);
+  transition:all .2s;border-bottom:3px solid transparent;text-align:center;}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);background:var(--gold-pale);}
+.tab-btn:hover:not(.active){background:#f5f2ea;color:var(--text);}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+/* ── COMMON LAYOUT ── */
+.page-pad{padding:14px 13px 100px;}
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px;}
+.section-hdr h2{font-family:'Fraunces',serif;font-size:18px;color:var(--deep);}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-gold{background:var(--deep);color:var(--gold-lt);}
+.badge-teal{background:var(--teal);color:#fff;}
+.badge-purple{background:var(--purple);color:#fff;}
+
+/* ── MONTH NAVIGATOR ── */
+.month-nav{display:flex;align-items:center;gap:10px;background:var(--card);
+  border-radius:var(--r);box-shadow:var(--shadow);padding:10px 14px;margin-bottom:12px;
+  border:1px solid var(--border);}
+.month-nav-title{font-family:'Fraunces',serif;font-size:15px;color:var(--deep);flex:1;text-align:center;}
+.mn-btn{background:var(--deep);color:var(--gold-lt);border:none;border-radius:6px;
+  padding:5px 12px;cursor:pointer;font-size:13px;font-weight:700;transition:all .15s;}
+.mn-btn:hover{background:var(--dark);}
+
+/* ── INCOME CARDS ── */
+.income-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  margin-bottom:9px;overflow:hidden;border:1px solid var(--border);
+  transition:transform .15s,box-shadow .15s;}
+.income-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+.income-card-body{padding:12px 14px;}
+.ic-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px;}
+.ic-title{font-weight:700;font-size:14px;color:var(--deep);flex:1;}
+.ic-net{font-family:'Fraunces',serif;font-size:17px;font-weight:700;white-space:nowrap;}
+.ic-net.trading{color:var(--blue);}
+.ic-net.dividend{color:var(--teal);}
+.ic-net.other{color:var(--purple);}
+.ic-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-wrap:wrap;}
+.ic-tax{font-size:11px;color:var(--red);font-weight:500;}
+.income-card-footer{padding:6px 14px;display:flex;align-items:center;justify-content:space-between;}
+.income-card-footer.trading{background:linear-gradient(135deg,var(--blue),#2563eb);}
+.income-card-footer.dividend{background:linear-gradient(135deg,var(--teal),#0f766e);}
+.income-card-footer.other{background:linear-gradient(135deg,var(--purple),#6d28d9);}
+.ic-footer-lbl{color:rgba(255,255,255,.7);font-size:11px;}
+.ic-footer-val{color:#fff;font-size:11px;font-weight:700;}
+
+/* ── TRADING MONTH GRID ── */
+.trading-grid{display:grid;grid-template-columns:1fr;gap:11px;}
+.trading-broker-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  overflow:hidden;border:1px solid var(--border);}
+.tbk-header{background:linear-gradient(135deg,var(--deep),var(--dark));padding:11px 14px;
+  display:flex;align-items:center;justify-content:space-between;}
+.tbk-name{font-family:'Fraunces',serif;color:var(--gold-lt);font-size:14px;}
+.tbk-total{font-family:'Fraunces',serif;color:var(--gold-lt);font-size:15px;}
+.tbk-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+.tbk-row{display:flex;align-items:center;gap:10px;padding:9px 12px;
+  background:#f8f6f0;border-radius:var(--r-sm);border:1px solid var(--border);}
+.tbk-row-cat{flex:1;font-weight:600;font-size:13px;color:var(--text);}
+.tbk-row-amt{font-family:'Fraunces',serif;font-size:14px;color:var(--blue);font-weight:700;}
+.tbk-add-btn{width:100%;padding:9px;background:linear-gradient(135deg,var(--blue),#2563eb);
+  color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;font-family:'DM Sans',sans-serif;
+  font-size:12px;font-weight:600;transition:all .2s;margin-top:4px;}
+.tbk-add-btn:hover{transform:translateY(-1px);}
+.tbk-empty{text-align:center;padding:18px;color:var(--muted);font-size:12px;}
+
+/* ── FORM STYLES ── */
+.entry-header{background:var(--deep);padding:13px 14px;display:flex;align-items:center;gap:11px;}
+.back-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;
+  border-radius:7px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;}
+.back-btn:hover{background:rgba(255,255,255,.25);}
+.entry-title{font-family:'Fraunces',serif;color:var(--gold-lt);font-size:16px;}
+.entry-subtitle{color:rgba(255,255,255,.45);font-size:11px;margin-top:2px;}
+.section-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  margin:11px 13px;padding:15px;border:1px solid var(--border);}
+.section-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.9px;margin-bottom:11px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-grid.full{grid-template-columns:1fr;}
+.form-grid.three{grid-template-columns:1fr 1fr 1fr;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1.5px solid var(--border);
+  border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
+  background:#fafaf6;transition:all .2s;outline:none;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--mid);background:#fff;
+  box-shadow:0 0 0 3px rgba(46,107,74,.15);}
+.fg input[readonly]{background:#f0f4f0;color:var(--green);font-weight:700;}
+.net-positive{background:#ecfdf5!important;color:var(--green)!important;border-color:#a7f3d0!important;}
+.net-negative{background:#fef2f2!important;color:var(--red)!important;border-color:#fecaca!important;}
+.net-zero{background:#f0f9ff!important;color:var(--blue)!important;border-color:#bae6fd!important;}
+
+/* ── BUTTONS ── */
+.entry-footer{position:fixed;bottom:0;left:0;right:0;background:var(--card);
+  border-top:1px solid var(--border);padding:10px 13px;display:flex;gap:9px;z-index:90;
+  box-shadow:0 -4px 20px rgba(0,0,0,.08);}
+.btn{padding:10px 18px;border-radius:var(--r-sm);border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-lt));color:#fff;flex:1;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(196,124,43,.4);}
+.btn-blue{background:linear-gradient(135deg,var(--blue),#2563eb);color:#fff;}
+.btn-teal{background:linear-gradient(135deg,var(--teal),#0f766e);color:#fff;}
+.btn-purple{background:linear-gradient(135deg,var(--purple),#6d28d9);color:#fff;}
+.btn-secondary{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
+.btn-secondary:hover{background:#f0ede4;}
+.btn-danger{background:#fee2e2;color:var(--red);border:1.5px solid #fecaca;}
+.btn-danger:hover{background:#fecaca;}
+.btn-sm{padding:6px 12px;font-size:11px;}
+.btn-icon{padding:5px 7px;border-radius:5px;border:none;cursor:pointer;font-size:12px;
+  background:#f0ede4;transition:all .15s;}
+.btn-icon:hover{background:#e0ddd4;}
+.btn-icon.del:hover{background:#fee2e2;color:var(--red);}
+
+/* ── FAB ── */
+.fab{position:fixed;bottom:22px;right:18px;width:52px;height:52px;border-radius:50%;
+  color:#fff;border:none;font-size:26px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;z-index:90;transition:all .2s;}
+.fab:hover{transform:scale(1.08);}
+.fab-gold{background:linear-gradient(135deg,var(--gold),var(--gold-lt));box-shadow:0 4px 20px rgba(196,124,43,.5);}
+.fab-teal{background:linear-gradient(135deg,var(--teal),#0f766e);box-shadow:0 4px 20px rgba(13,148,136,.5);}
+.fab-purple{background:linear-gradient(135deg,var(--purple),#6d28d9);box-shadow:0 4px 20px rgba(124,58,237,.5);}
+
+/* ── DASHBOARD ── */
+.dash-wrap{max-width:1100px;margin:0 auto;padding:16px 13px 48px;}
+.filter-bar{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:11px 13px;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;
+  align-items:flex-end;border:1px solid var(--border);}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:100px;flex:1;}
+.filter-group label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;}
+.filter-sel{padding:7px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+  font-family:'DM Sans',sans-serif;font-size:12px;background:#fff;color:var(--text);cursor:pointer;outline:none;}
+.filter-sel:focus{border-color:var(--mid);}
+.filter-reset{padding:7px 12px;background:var(--deep);color:var(--gold-lt);border:none;
+  border-radius:var(--r-sm);cursor:pointer;font-size:11px;font-weight:700;
+  white-space:nowrap;transition:all .15s;align-self:flex-end;}
+.filter-reset:hover{background:var(--dark);}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-bottom:13px;}
+.kpi{background:var(--card);border-radius:var(--r);padding:13px;box-shadow:var(--shadow);
+  border:1px solid var(--border);position:relative;overflow:hidden;}
+.kpi.kpi-trading{border-top:3px solid var(--blue);}
+.kpi.kpi-dividend{border-top:3px solid var(--teal);}
+.kpi.kpi-other{border-top:3px solid var(--purple);}
+.kpi.kpi-total{border-top:3px solid var(--gold);}
+.kpi::after{content:'';position:absolute;top:0;right:0;width:42px;height:42px;
+  background:radial-gradient(circle at top right,rgba(196,124,43,.10),transparent 70%);}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.kpi-val{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--deep);line-height:1;}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px;}
+.chart-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:15px;border:1px solid var(--border);}
+.chart-card.full{grid-column:1/-1;}
+.chart-ttl{font-family:'Fraunces',serif;font-size:13px;color:var(--deep);
+  margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.chart-wrap{position:relative;height:200px;}
+.chart-wrap.tall{height:280px;}
+.tbl-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;
+  border:1px solid var(--border);margin-bottom:11px;}
+.tbl-hdr{padding:10px 15px;display:flex;align-items:center;justify-content:space-between;}
+.tbl-hdr.trading{background:linear-gradient(135deg,var(--blue),#1e40af);}
+.tbl-hdr.dividend{background:linear-gradient(135deg,var(--teal),#0f766e);}
+.tbl-hdr.other{background:linear-gradient(135deg,var(--purple),#6d28d9);}
+.tbl-hdr h3{font-family:'Fraunces',serif;font-size:14px;color:#fff;}
+.tbl-hdr span{font-size:10px;color:rgba(255,255,255,.5);}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+table th{padding:8px 10px;text-align:left;font-weight:700;font-size:10px;text-transform:uppercase;
+  letter-spacing:.6px;white-space:nowrap;color:var(--muted);background:#f5f2ea;border-bottom:1px solid var(--border);}
+table td{padding:8px 10px;border-bottom:1px solid #f0ede4;color:var(--text);vertical-align:middle;}
+table tr:last-child td{border-bottom:none;}
+table tr:hover td{background:#f9f6ee;}
+.tfoot-row td{background:var(--deep)!important;color:var(--gold-lt)!important;font-weight:700;font-size:11px;padding:8px 10px;}
+
+/* ── MANAGER MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,35,24,.65);
+  z-index:200;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;
+  max-height:92vh;overflow-y:auto;animation:slideUp .25s ease;
+  padding-bottom:env(safe-area-inset-bottom);}
+@media(min-width:600px){.modal{border-radius:var(--r);margin:auto;max-height:88vh;}}
+@keyframes slideUp{from{transform:translateY(50px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:32px;height:4px;background:var(--border);border-radius:2px;margin:9px auto 0;display:block;}
+.modal-hdr{padding:13px 17px 7px;display:flex;align-items:center;justify-content:space-between;}
+.modal-hdr h3{font-family:'Fraunces',serif;font-size:16px;color:var(--deep);}
+.modal-close{background:#f0ede4;border:none;width:27px;height:27px;border-radius:50%;
+  cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:0 17px 15px;}
+.modal-footer{padding:10px 17px;display:flex;gap:8px;border-top:1px solid var(--border);}
+.mgr-item{background:#fafaf6;border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;margin-bottom:5px;}
+.mgr-item-top{display:flex;align-items:center;gap:8px;}
+.mgr-item-lbl{flex:1;font-size:13px;font-weight:600;color:var(--text);}
+.mgr-actions{display:flex;gap:5px;}
+.mgr-edit-row{display:none;margin-top:8px;}
+.mgr-edit-row.open{display:flex;gap:7px;align-items:center;}
+.mgr-name-inp{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;
+  font-family:'DM Sans',sans-serif;font-size:13px;background:#fff;outline:none;}
+.mgr-name-inp:focus{border-color:var(--mid);}
+
+/* ── EMPTY & DATA BAR ── */
+.empty-state{text-align:center;padding:40px 18px;color:var(--muted);}
+.empty-state .ei{font-size:44px;margin-bottom:10px;}
+.empty-state h3{font-size:16px;color:var(--deep);margin-bottom:6px;}
+.data-bar{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:11px 14px;margin:0 0 11px;display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:7px;border:1px solid var(--border);}
+.data-bar-info{font-size:11px;color:var(--muted);}
+.data-bar-info strong{color:var(--deep);}
+.data-bar-btns{display:flex;gap:5px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:16px;right:13px;background:var(--deep);color:#fff;
+  padding:9px 15px;border-radius:9px;font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);
+  transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  z-index:9999;max-width:290px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-left:4px solid var(--green);}
+.toast.error{border-left:4px solid var(--red);}
+.toast.info{border-left:4px solid var(--gold);}
+
+@media(max-width:600px){
+  .charts-grid{grid-template-columns:1fr;}.chart-card.full{grid-column:1;}
+  .kpi-row{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .form-grid.three{grid-template-columns:1fr 1fr;}
+  .filter-group{min-width:calc(50% - 8px);}
+  .trading-grid{grid-template-columns:1fr;}
+}
+@media(max-width:380px){.kpi-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-icon">📈</div>
+    <div><h1>Income Register</h1><div class="hdr-sub">Trading · Dividends · Other Income</div></div>
+  </div>
+  <nav class="hdr-nav">
+    <button class="nav-btn active" id="nav-income" onclick="showPage('income')">💰 Income</button>
+    <button class="nav-btn" id="nav-dashboard" onclick="showPage('dashboard')">📊 Dashboard</button>
+    <button class="nav-btn" onclick="openBrokerMgr()">🏦 Brokers</button>
+    <button class="nav-btn" onclick="openTradeCatMgr()">📋 Trade Types</button>
+  </nav>
+</header>
+
+<!-- ══════════════ INCOME PAGE ══════════════ -->
+<div id="page-income" class="page active">
+  <div class="page-pad">
+
+    <!-- Month Navigator -->
+    <div class="month-nav">
+      <button class="mn-btn" onclick="changeMonth(-1)">‹</button>
+      <div class="month-nav-title" id="month-nav-title">—</div>
+      <button class="mn-btn" onclick="changeMonth(1)">›</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-btn-trading" onclick="switchTab('trading')">📈 Trading</button>
+      <button class="tab-btn" id="tab-btn-dividend" onclick="switchTab('dividend')">💹 Dividends</button>
+      <button class="tab-btn" id="tab-btn-other" onclick="switchTab('other')">🪙 Other</button>
+    </div>
+
+    <!-- TRADING TAB -->
+    <div class="tab-content active" id="tab-trading">
+      <div class="section-hdr">
+        <h2>Trading Income</h2>
+        <span class="badge badge-gold" id="trading-total-badge">₹0.00</span>
+      </div>
+      <div class="trading-grid" id="trading-grid"></div>
+      <div class="data-bar" style="margin-top:8px;">
+        <div class="data-bar-info"><strong>💾 Data</strong> stored locally. Export to back up.</div>
+        <div class="data-bar-btns">
+          <button class="btn btn-secondary btn-sm" onclick="exportData()">↓ Export</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">↑ Import</button>
+          <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(event)">
+        </div>
+      </div>
+    </div>
+
+    <!-- DIVIDEND TAB -->
+    <div class="tab-content" id="tab-dividend">
+      <div class="section-hdr">
+        <h2>Dividend Income</h2>
+        <span class="badge badge-teal" id="dividend-total-badge">₹0.00</span>
+      </div>
+      <div id="dividend-list"></div>
+    </div>
+
+    <!-- OTHER TAB -->
+    <div class="tab-content" id="tab-other">
+      <div class="section-hdr">
+        <h2>Other Income</h2>
+        <span class="badge badge-purple" id="other-total-badge">₹0.00</span>
+      </div>
+      <div id="other-list"></div>
+    </div>
+
+  </div>
+
+  <!-- Contextual FAB -->
+  <button class="fab fab-teal" id="fab-dividend" style="display:none;" onclick="newDividend()">+</button>
+  <button class="fab fab-purple" id="fab-other" style="display:none;" onclick="newOther()">+</button>
+</div>
+
+<!-- ══════════════ TRADING ENTRY ══════════════ -->
+<div id="page-trading-entry" class="page">
+  <div class="entry-header">
+    <button class="back-btn" onclick="showPage('income')">←</button>
+    <div>
+      <div class="entry-title" id="te-title">Trading Entry</div>
+      <div class="entry-subtitle" id="te-subtitle">Monthly P&amp;L for broker</div>
+    </div>
+  </div>
+  <input type="hidden" id="te-id">
+  <input type="hidden" id="te-broker">
+  <input type="hidden" id="te-month-year">
+  <div class="section-card">
+    <div class="section-label">📈 Trade Details</div>
+    <div class="form-grid">
+      <div class="fg"><label>Month *</label>
+        <select id="te-month"></select>
+      </div>
+      <div class="fg"><label>Year *</label>
+        <select id="te-year"></select>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="fg"><label>Broker</label>
+        <input type="text" id="te-broker-display" readonly style="background:#f0f4f0;font-weight:600;">
+      </div>
+      <div class="fg"><label>Trade Type</label>
+        <input type="text" id="te-cat-display" readonly style="background:#f0f4f0;font-weight:600;">
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="fg"><label>Gross P&amp;L (₹) *</label>
+        <input type="number" id="te-gross" step="0.01" placeholder="0.00 (negative for loss)" oninput="calcTradingNet()">
+      </div>
+      <div class="fg"><label>Tax / STT / Charges (₹)</label>
+        <input type="number" id="te-tax" min="0" step="0.01" placeholder="0.00" oninput="calcTradingNet()">
+      </div>
+    </div>
+    <div class="form-grid full" style="margin-top:10px;">
+      <div class="fg"><label>Net Income (₹) — Auto Calculated</label>
+        <input type="text" id="te-net" readonly placeholder="Auto calculated">
+      </div>
+    </div>
+    <div class="form-grid full" style="margin-top:10px;">
+      <div class="fg"><label>Notes</label>
+        <input type="text" id="te-notes" placeholder="Optional remarks...">
+      </div>
+    </div>
+  </div>
+  <div style="height:75px;"></div>
+  <div class="entry-footer">
+    <button class="btn btn-secondary" onclick="showPage('income')">Cancel</button>
+    <button class="btn btn-blue" onclick="saveTrading()" style="flex:1;">💾 Save Trading Entry</button>
+  </div>
+</div>
+
+<!-- ══════════════ DIVIDEND ENTRY ══════════════ -->
+<div id="page-dividend-entry" class="page">
+  <div class="entry-header">
+    <button class="back-btn" onclick="showPage('income')">←</button>
+    <div>
+      <div class="entry-title" id="div-entry-title">New Dividend</div>
+      <div class="entry-subtitle">Enter dividend receipt details</div>
+    </div>
+  </div>
+  <input type="hidden" id="div-id">
+  <div class="section-card">
+    <div class="section-label">💹 Dividend Details</div>
+    <div class="form-grid">
+      <div class="fg"><label>Date *</label><input type="date" id="div-date"></div>
+      <div class="fg"><label>Stock / Fund Name *</label>
+        <input type="text" id="div-stock" placeholder="e.g. TCS, HDFC Bank..." list="stock-sugg" autocomplete="off">
+        <datalist id="stock-sugg"></datalist>
+      </div>
+    </div>
+    <div class="form-grid three" style="margin-top:10px;">
+      <div class="fg"><label>Dividend (₹) *</label>
+        <input type="number" id="div-amount" min="0" step="0.01" placeholder="0.00" oninput="calcDivNet()">
+      </div>
+      <div class="fg"><label>Tax Deducted (₹)</label>
+        <input type="number" id="div-tax" min="0" step="0.01" value="0" oninput="calcDivNet()">
+      </div>
+      <div class="fg"><label>Net Income (₹)</label>
+        <input type="text" id="div-net" readonly placeholder="Auto">
+      </div>
+    </div>
+    <div class="form-grid full" style="margin-top:10px;">
+      <div class="fg"><label>Notes</label>
+        <input type="text" id="div-notes" placeholder="Record date, per share dividend, etc.">
+      </div>
+    </div>
+  </div>
+  <div style="height:75px;"></div>
+  <div class="entry-footer">
+    <button class="btn btn-secondary" onclick="showPage('income')">Cancel</button>
+    <button class="btn btn-teal" onclick="saveDividend()" style="flex:1;">💾 Save Dividend</button>
+  </div>
+</div>
+
+<!-- ══════════════ OTHER INCOME ENTRY ══════════════ -->
+<div id="page-other-entry" class="page">
+  <div class="entry-header">
+    <button class="back-btn" onclick="showPage('income')">←</button>
+    <div>
+      <div class="entry-title" id="oth-entry-title">New Other Income</div>
+      <div class="entry-subtitle">Commission, distribution, interest, etc.</div>
+    </div>
+  </div>
+  <input type="hidden" id="oth-id">
+  <div class="section-card">
+    <div class="section-label">🪙 Income Details</div>
+    <div class="form-grid">
+      <div class="fg"><label>Date *</label><input type="date" id="oth-date"></div>
+      <div class="fg"><label>Description *</label>
+        <input type="text" id="oth-desc" placeholder="e.g. MF Commission, FD Interest..." list="oth-sugg" autocomplete="off">
+        <datalist id="oth-sugg"></datalist>
+      </div>
+    </div>
+    <div class="form-grid three" style="margin-top:10px;">
+      <div class="fg"><label>Amount (₹) *</label>
+        <input type="number" id="oth-amount" min="0" step="0.01" placeholder="0.00" oninput="calcOthNet()">
+      </div>
+      <div class="fg"><label>Tax Deducted (₹)</label>
+        <input type="number" id="oth-tax" min="0" step="0.01" value="0" oninput="calcOthNet()">
+      </div>
+      <div class="fg"><label>Net Income (₹)</label>
+        <input type="text" id="oth-net" readonly placeholder="Auto">
+      </div>
+    </div>
+    <div class="form-grid full" style="margin-top:10px;">
+      <div class="fg"><label>Notes</label>
+        <input type="text" id="oth-notes" placeholder="Source, account, period, etc.">
+      </div>
+    </div>
+  </div>
+  <div style="height:75px;"></div>
+  <div class="entry-footer">
+    <button class="btn btn-secondary" onclick="showPage('income')">Cancel</button>
+    <button class="btn btn-purple" onclick="saveOther()" style="flex:1;">💾 Save Income</button>
+  </div>
+</div>
+
+<!-- ══════════════ DASHBOARD PAGE ══════════════ -->
+<div id="page-dashboard" class="page">
+  <div class="dash-wrap">
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Fraunces',serif;font-size:22px;color:var(--deep);">Income <span style="color:var(--gold);">Dashboard</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Trading · Dividends · Other · Monthly trends</div>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-group"><label>Year</label>
+        <select class="filter-sel" id="d-year" onchange="renderDashboard()"><option value="all">All Years</option></select>
+      </div>
+      <div class="filter-group"><label>Month</label>
+        <select class="filter-sel" id="d-month" onchange="renderDashboard()">
+          <option value="all">All Months</option>
+          <option>January</option><option>February</option><option>March</option><option>April</option>
+          <option>May</option><option>June</option><option>July</option><option>August</option>
+          <option>September</option><option>October</option><option>November</option><option>December</option>
+        </select>
+      </div>
+      <button class="filter-reset" onclick="resetDash()">↺ Reset</button>
+    </div>
+    <div id="dash-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════ BROKER MANAGER ══════════════ -->
+<div class="modal-overlay" id="broker-modal">
+  <div class="modal">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>🏦 Manage Brokers</h3>
+      <button class="modal-close" onclick="closeBrokerMgr()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add, rename or remove brokers for trading income entries.</p>
+      <div id="broker-mgr-list"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 7px;">Add New Broker</div>
+      <div style="display:flex;gap:7px;">
+        <input type="text" id="new-broker-name" class="mgr-name-inp" placeholder="Broker name...">
+        <button class="btn btn-blue btn-sm" onclick="addBroker()">+ Add</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBrokerMgr()" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBrokerMgr()" style="flex:2;">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TRADE TYPE MANAGER ══════════════ -->
+<div class="modal-overlay" id="tradecat-modal">
+  <div class="modal">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>📋 Manage Trade Types</h3>
+      <button class="modal-close" onclick="closeTradeCatMgr()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add, rename or remove trading categories (Equity, F&amp;O, Commodity, etc.).</p>
+      <div id="tradecat-mgr-list"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 7px;">Add New Type</div>
+      <div style="display:flex;gap:7px;">
+        <input type="text" id="new-tradecat-name" class="mgr-name-inp" placeholder="Trade type name...">
+        <button class="btn btn-blue btn-sm" onclick="addTradeCat()">+ Add</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTradeCatMgr()" style="flex:1;">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTradeCatMgr()" style="flex:2;">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ DELETE CONFIRM ══════════════ -->
+<div class="modal-overlay" id="del-modal">
+  <div class="modal" style="border-radius:var(--r);margin:auto;max-width:340px;max-height:none;">
+    <div class="modal-hdr"><h3>🗑️ Delete Entry</h3>
+      <button class="modal-close" onclick="closeDelModal()">✕</button></div>
+    <div class="modal-body"><p id="del-msg" style="font-size:13px;color:var(--muted);line-height:1.6;padding-top:5px;"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDelModal()" style="flex:1;">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDel()" style="flex:1;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// CONSTANTS & DEFAULTS
+// ══════════════════════════════════════════════════
+const SK = 'income_register_v1';
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+
+const DEFAULT_BROKERS = [
+  {id:'b01', name:'Zerodha'},
+  {id:'b02', name:'Definedge Securities'}
+];
+const DEFAULT_TRADE_CATS = [
+  {id:'tc01', name:'Equity'},
+  {id:'tc02', name:'F&O'},
+  {id:'tc03', name:'Commodity'}
+];
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let D = {trading:[], dividends:[], other:[], brokers:[], tradeCats:[]};
+let curMonth = new Date().getMonth();
+let curYear  = new Date().getFullYear();
+let curTab   = 'trading';
+let pendingDel = null;   // {type, id}
+let tempBrokers = [];
+let tempTradeCats = [];
+let dashCharts = {};
+
+// Entry form context
+let teContext = {brokerId:'', brokerName:'', catId:'', catName:''};
+
+// ══════════════════════════════════════════════════
+// DATA LAYER
+// ══════════════════════════════════════════════════
+function loadData() {
+  try {
+    const r = localStorage.getItem(SK);
+    D = r ? JSON.parse(r) : {};
+    if (!Array.isArray(D.trading))    D.trading = [];
+    if (!Array.isArray(D.dividends))  D.dividends = [];
+    if (!Array.isArray(D.other))      D.other = [];
+    if (!Array.isArray(D.brokers) || !D.brokers.length)
+      D.brokers = JSON.parse(JSON.stringify(DEFAULT_BROKERS));
+    if (!Array.isArray(D.tradeCats) || !D.tradeCats.length)
+      D.tradeCats = JSON.parse(JSON.stringify(DEFAULT_TRADE_CATS));
+  } catch(e) {
+    D = {trading:[], dividends:[], other:[],
+         brokers: JSON.parse(JSON.stringify(DEFAULT_BROKERS)),
+         tradeCats: JSON.parse(JSON.stringify(DEFAULT_TRADE_CATS))};
+  }
+}
+function save() { localStorage.setItem(SK, JSON.stringify(D)); }
+function gid()  { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
+
+// ══════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════
+function fmt(n, decimals=2) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-IN', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+}
+function fmtD(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.getDate().toString().padStart(2,'0') + '/' +
+    (dt.getMonth()+1).toString().padStart(2,'0') + '/' + dt.getFullYear();
+}
+function showToast(m, t='info') {
+  const el = document.getElementById('toast');
+  el.textContent = m; el.className = 'toast ' + t + ' show';
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+function monthLabel(y, m) { return MONTHS[m] + ' ' + y; }
+function monthKey(y, m)   { return y + '-' + String(m + 1).padStart(2,'0'); }
+
+// Get net income color class
+function netClass(n) {
+  if (n > 0) return 'net-positive';
+  if (n < 0) return 'net-negative';
+  return 'net-zero';
+}
+
+// ══════════════════════════════════════════════════
+// MONTH NAVIGATION
+// ══════════════════════════════════════════════════
+function changeMonth(dir) {
+  curMonth += dir;
+  if (curMonth > 11) { curMonth = 0; curYear++; }
+  if (curMonth < 0)  { curMonth = 11; curYear--; }
+  renderIncome();
+}
+
+// ══════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════
+function switchTab(tab) {
+  curTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-btn-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  // Show/hide FABs
+  document.getElementById('fab-dividend').style.display = tab === 'dividend' ? 'flex' : 'none';
+  document.getElementById('fab-other').style.display    = tab === 'other'    ? 'flex' : 'none';
+}
+
+// ══════════════════════════════════════════════════
+// RENDER INCOME PAGE
+// ══════════════════════════════════════════════════
+function renderIncome() {
+  document.getElementById('month-nav-title').textContent = monthLabel(curYear, curMonth);
+  renderTrading();
+  renderDividends();
+  renderOther();
+}
+
+// ─── TRADING ───────────────────────────────────────
+function renderTrading() {
+  const mk = monthKey(curYear, curMonth);
+  let grandNet = 0;
+  let html = '';
+
+  D.brokers.forEach(broker => {
+    const entries = D.trading.filter(t => t.brokerId === broker.id && t.monthYear === mk);
+    const brokerNet = entries.reduce((s,t) => s + (t.net || 0), 0);
+    grandNet += brokerNet;
+
+    html += `<div class="trading-broker-card">
+      <div class="tbk-header">
+        <div class="tbk-name">🏦 ${broker.name}</div>
+        <div class="tbk-total">₹${fmt(brokerNet)}</div>
+      </div>
+      <div class="tbk-body">`;
+
+    if (!entries.length) {
+      html += `<div class="tbk-empty">No entries for ${MONTHS[curMonth]} ${curYear}.<br>Tap a trade type below to add.</div>`;
+    }
+
+    D.tradeCats.forEach(cat => {
+      const entry = entries.find(t => t.catId === cat.id);
+      if (entry) {
+        const netColor = entry.net > 0 ? 'var(--green)' : entry.net < 0 ? 'var(--red)' : 'var(--blue)';
+        html += `<div class="tbk-row">
+          <div class="tbk-row-cat">${cat.name}</div>
+          <div style="font-size:11px;color:var(--muted);">Gross: ₹${fmt(entry.gross)} &nbsp; Tax: ₹${fmt(entry.tax||0)}</div>
+          <div class="tbk-row-amt" style="color:${netColor};">₹${fmt(entry.net)}</div>
+          <button class="btn-icon" onclick="editTrading('${entry.id}')">✏️</button>
+          <button class="btn-icon del" onclick="delEntry('trading','${entry.id}','${cat.name} — ${broker.name}')">🗑️</button>
+        </div>`;
+      } else {
+        html += `<button class="tbk-add-btn" onclick="newTrading('${broker.id}','${broker.name}','${cat.id}','${cat.name}')">
+          + Add ${cat.name} Income
+        </button>`;
+      }
+    });
+
+    html += `</div></div>`;
+  });
+
+  if (!D.brokers.length) {
+    html = `<div class="empty-state"><div class="ei">🏦</div><h3>No brokers configured</h3><p>Tap 🏦 Brokers in the menu to add brokers.</p></div>`;
+  }
+
+  document.getElementById('trading-grid').innerHTML = html;
+  document.getElementById('trading-total-badge').textContent = '₹' + fmt(grandNet);
+}
+
+// ─── DIVIDENDS ─────────────────────────────────────
+function renderDividends() {
+  const mk = monthKey(curYear, curMonth);
+  const divs = D.dividends
+    .filter(d => d.date.startsWith(mk))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  const total = divs.reduce((s,d) => s + (d.net||0), 0);
+  document.getElementById('dividend-total-badge').textContent = '₹' + fmt(total);
+
+  if (!divs.length) {
+    document.getElementById('dividend-list').innerHTML =
+      `<div class="empty-state"><div class="ei">💹</div><h3>No dividends for ${MONTHS[curMonth]} ${curYear}</h3><p>Tap + to add a dividend entry.</p></div>`;
+    return;
+  }
+
+  document.getElementById('dividend-list').innerHTML = divs.map(d => `
+    <div class="income-card">
+      <div class="income-card-body">
+        <div class="ic-top">
+          <div class="ic-title">📊 ${d.stock}</div>
+          <div class="ic-net dividend">₹${fmt(d.net)}</div>
+        </div>
+        <div class="ic-meta">
+          <span>📅 ${fmtD(d.date)}</span>
+          <span>Gross: ₹${fmt(d.amount)}</span>
+          ${d.tax > 0 ? `<span class="ic-tax">TDS: ₹${fmt(d.tax)}</span>` : ''}
+          ${d.notes ? `<span>📝 ${d.notes}</span>` : ''}
+        </div>
+      </div>
+      <div class="income-card-footer dividend">
+        <div class="ic-footer-lbl">💹 Dividend</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-icon" onclick="editDividend('${d.id}')">✏️</button>
+          <button class="btn-icon del" onclick="delEntry('dividend','${d.id}','${d.stock}')">🗑️</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── OTHER INCOME ──────────────────────────────────
+function renderOther() {
+  const mk = monthKey(curYear, curMonth);
+  const items = D.other
+    .filter(o => o.date.startsWith(mk))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  const total = items.reduce((s,o) => s + (o.net||0), 0);
+  document.getElementById('other-total-badge').textContent = '₹' + fmt(total);
+
+  if (!items.length) {
+    document.getElementById('other-list').innerHTML =
+      `<div class="empty-state"><div class="ei">🪙</div><h3>No other income for ${MONTHS[curMonth]} ${curYear}</h3><p>Tap + to add commissions, interest, referrals, etc.</p></div>`;
+    return;
+  }
+
+  document.getElementById('other-list').innerHTML = items.map(o => `
+    <div class="income-card">
+      <div class="income-card-body">
+        <div class="ic-top">
+          <div class="ic-title">🪙 ${o.description}</div>
+          <div class="ic-net other">₹${fmt(o.net)}</div>
+        </div>
+        <div class="ic-meta">
+          <span>📅 ${fmtD(o.date)}</span>
+          <span>Gross: ₹${fmt(o.amount)}</span>
+          ${o.tax > 0 ? `<span class="ic-tax">TDS: ₹${fmt(o.tax)}</span>` : ''}
+          ${o.notes ? `<span>📝 ${o.notes}</span>` : ''}
+        </div>
+      </div>
+      <div class="income-card-footer other">
+        <div class="ic-footer-lbl">🪙 Other Income</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-icon" onclick="editOther('${o.id}')">✏️</button>
+          <button class="btn-icon del" onclick="delEntry('other','${o.id}','${o.description}')">🗑️</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// TRADING ENTRY FORM
+// ══════════════════════════════════════════════════
+function populateTEDropdowns() {
+  const mSel = document.getElementById('te-month');
+  mSel.innerHTML = MONTHS.map((m,i) => `<option value="${i}">${m}</option>`).join('');
+  const ySel = document.getElementById('te-year');
+  ySel.innerHTML = '';
+  const cy = new Date().getFullYear();
+  for (let y = cy+1; y >= cy-3; y--) {
+    ySel.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+}
+
+function newTrading(brokerId, brokerName, catId, catName) {
+  teContext = {brokerId, brokerName, catId, catName};
+  document.getElementById('te-id').value = '';
+  populateTEDropdowns();
+  document.getElementById('te-month').value = curMonth;
+  document.getElementById('te-year').value = curYear;
+  document.getElementById('te-broker-display').value = brokerName;
+  document.getElementById('te-cat-display').value = catName;
+  document.getElementById('te-gross').value = '';
+  document.getElementById('te-tax').value = '0';
+  document.getElementById('te-net').value = '';
+  document.getElementById('te-net').className = '';
+  document.getElementById('te-notes').value = '';
+  document.getElementById('te-title').textContent = `${catName} — ${brokerName}`;
+  document.getElementById('te-subtitle').textContent = `${MONTHS[curMonth]} ${curYear}`;
+  showPage('trading-entry');
+}
+
+function editTrading(id) {
+  const t = D.trading.find(x => x.id === id);
+  if (!t) return;
+  teContext = {brokerId: t.brokerId, brokerName: t.brokerName, catId: t.catId, catName: t.catName};
+  const broker = D.brokers.find(b => b.id === t.brokerId);
+  const cat = D.tradeCats.find(c => c.id === t.catId);
+  populateTEDropdowns();
+  document.getElementById('te-id').value = t.id;
+  const [y, m] = t.monthYear.split('-');
+  document.getElementById('te-month').value = parseInt(m) - 1;
+  document.getElementById('te-year').value = y;
+  document.getElementById('te-broker-display').value = broker ? broker.name : t.brokerName;
+  document.getElementById('te-cat-display').value = cat ? cat.name : t.catName;
+  document.getElementById('te-gross').value = t.gross;
+  document.getElementById('te-tax').value = t.tax || 0;
+  calcTradingNet();
+  document.getElementById('te-notes').value = t.notes || '';
+  document.getElementById('te-title').textContent = `Edit: ${t.catName} — ${t.brokerName}`;
+  document.getElementById('te-subtitle').textContent = MONTHS[parseInt(m)-1] + ' ' + y;
+  showPage('trading-entry');
+}
+
+function calcTradingNet() {
+  const gross = parseFloat(document.getElementById('te-gross').value) || 0;
+  const tax   = parseFloat(document.getElementById('te-tax').value)   || 0;
+  const net   = gross - tax;
+  const el = document.getElementById('te-net');
+  el.value = isNaN(net) ? '' : '₹' + fmt(net);
+  el.className = netClass(net);
+}
+
+function saveTrading() {
+  const month = parseInt(document.getElementById('te-month').value);
+  const year  = parseInt(document.getElementById('te-year').value);
+  const gross = parseFloat(document.getElementById('te-gross').value);
+  const tax   = parseFloat(document.getElementById('te-tax').value) || 0;
+
+  if (isNaN(month) || isNaN(year)) { showToast('Select month and year.', 'error'); return; }
+  if (isNaN(gross)) { showToast('Enter gross P&L (use negative for loss).', 'error'); return; }
+
+  const mk = monthKey(year, month);
+  const eid = document.getElementById('te-id').value;
+
+  // Check for duplicate (same broker + cat + month), excluding current edit
+  const dup = D.trading.find(t =>
+    t.brokerId === teContext.brokerId &&
+    t.catId === teContext.catId &&
+    t.monthYear === mk &&
+    t.id !== eid
+  );
+  if (dup) { showToast('Entry already exists for this broker, trade type and month. Edit the existing one.', 'error'); return; }
+
+  const entry = {
+    id: eid || gid(),
+    brokerId: teContext.brokerId, brokerName: teContext.brokerName,
+    catId: teContext.catId, catName: teContext.catName,
+    monthYear: mk, gross, tax, net: gross - tax,
+    notes: document.getElementById('te-notes').value.trim()
+  };
+
+  if (eid) {
+    const idx = D.trading.findIndex(t => t.id === eid);
+    if (idx !== -1) D.trading[idx] = entry;
+  } else {
+    D.trading.push(entry);
+  }
+
+  save();
+  curMonth = month; curYear = year;
+  renderIncome();
+  showToast('✅ Trading entry saved!', 'success');
+  showPage('income');
+}
+
+// ══════════════════════════════════════════════════
+// DIVIDEND ENTRY FORM
+// ══════════════════════════════════════════════════
+function newDividend() {
+  document.getElementById('div-id').value = '';
+  document.getElementById('div-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('div-stock').value = '';
+  document.getElementById('div-amount').value = '';
+  document.getElementById('div-tax').value = '0';
+  document.getElementById('div-net').value = '';
+  document.getElementById('div-net').className = '';
+  document.getElementById('div-notes').value = '';
+  document.getElementById('div-entry-title').textContent = 'New Dividend';
+  updateStockSugg();
+  showPage('dividend-entry');
+}
+
+function editDividend(id) {
+  const d = D.dividends.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('div-id').value = d.id;
+  document.getElementById('div-date').value = d.date;
+  document.getElementById('div-stock').value = d.stock;
+  document.getElementById('div-amount').value = d.amount;
+  document.getElementById('div-tax').value = d.tax || 0;
+  calcDivNet();
+  document.getElementById('div-notes').value = d.notes || '';
+  document.getElementById('div-entry-title').textContent = 'Edit Dividend';
+  updateStockSugg();
+  showPage('dividend-entry');
+}
+
+function calcDivNet() {
+  const amt = parseFloat(document.getElementById('div-amount').value) || 0;
+  const tax = parseFloat(document.getElementById('div-tax').value)    || 0;
+  const net = amt - tax;
+  const el  = document.getElementById('div-net');
+  el.value  = isNaN(net) ? '' : '₹' + fmt(net);
+  el.className = netClass(net);
+}
+
+function saveDividend() {
+  const date   = document.getElementById('div-date').value;
+  const stock  = document.getElementById('div-stock').value.trim();
+  const amount = parseFloat(document.getElementById('div-amount').value);
+  const tax    = parseFloat(document.getElementById('div-tax').value) || 0;
+
+  if (!date)               { showToast('Enter a date.', 'error'); return; }
+  if (!stock)              { showToast('Enter stock/fund name.', 'error'); return; }
+  if (isNaN(amount) || amount <= 0) { showToast('Enter a valid dividend amount.', 'error'); return; }
+
+  const eid = document.getElementById('div-id').value;
+  const entry = {
+    id: eid || gid(), date, stock, amount, tax, net: amount - tax,
+    notes: document.getElementById('div-notes').value.trim()
+  };
+
+  if (eid) {
+    const idx = D.dividends.findIndex(d => d.id === eid);
+    if (idx !== -1) D.dividends[idx] = entry;
+  } else {
+    D.dividends.push(entry);
+  }
+
+  save();
+  const d = new Date(date + 'T00:00:00');
+  curMonth = d.getMonth(); curYear = d.getFullYear();
+  renderIncome();
+  switchTab('dividend');
+  showToast('✅ Dividend saved!', 'success');
+  showPage('income');
+}
+
+function updateStockSugg() {
+  const stocks = [...new Set(D.dividends.map(d => d.stock))].sort();
+  document.getElementById('stock-sugg').innerHTML = stocks.map(s => `<option value="${s}">`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// OTHER INCOME ENTRY FORM
+// ══════════════════════════════════════════════════
+function newOther() {
+  document.getElementById('oth-id').value = '';
+  document.getElementById('oth-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('oth-desc').value = '';
+  document.getElementById('oth-amount').value = '';
+  document.getElementById('oth-tax').value = '0';
+  document.getElementById('oth-net').value = '';
+  document.getElementById('oth-net').className = '';
+  document.getElementById('oth-notes').value = '';
+  document.getElementById('oth-entry-title').textContent = 'New Other Income';
+  updateOthSugg();
+  showPage('other-entry');
+}
+
+function editOther(id) {
+  const o = D.other.find(x => x.id === id);
+  if (!o) return;
+  document.getElementById('oth-id').value = o.id;
+  document.getElementById('oth-date').value = o.date;
+  document.getElementById('oth-desc').value = o.description;
+  document.getElementById('oth-amount').value = o.amount;
+  document.getElementById('oth-tax').value = o.tax || 0;
+  calcOthNet();
+  document.getElementById('oth-notes').value = o.notes || '';
+  document.getElementById('oth-entry-title').textContent = 'Edit Other Income';
+  updateOthSugg();
+  showPage('other-entry');
+}
+
+function calcOthNet() {
+  const amt = parseFloat(document.getElementById('oth-amount').value) || 0;
+  const tax = parseFloat(document.getElementById('oth-tax').value)    || 0;
+  const net = amt - tax;
+  const el  = document.getElementById('oth-net');
+  el.value  = isNaN(net) ? '' : '₹' + fmt(net);
+  el.className = netClass(net);
+}
+
+function saveOther() {
+  const date   = document.getElementById('oth-date').value;
+  const desc   = document.getElementById('oth-desc').value.trim();
+  const amount = parseFloat(document.getElementById('oth-amount').value);
+  const tax    = parseFloat(document.getElementById('oth-tax').value) || 0;
+
+  if (!date)               { showToast('Enter a date.', 'error'); return; }
+  if (!desc)               { showToast('Enter a description.', 'error'); return; }
+  if (isNaN(amount) || amount <= 0) { showToast('Enter a valid amount.', 'error'); return; }
+
+  const eid = document.getElementById('oth-id').value;
+  const entry = {
+    id: eid || gid(), date, description: desc, amount, tax, net: amount - tax,
+    notes: document.getElementById('oth-notes').value.trim()
+  };
+
+  if (eid) {
+    const idx = D.other.findIndex(o => o.id === eid);
+    if (idx !== -1) D.other[idx] = entry;
+  } else {
+    D.other.push(entry);
+  }
+
+  save();
+  const d = new Date(date + 'T00:00:00');
+  curMonth = d.getMonth(); curYear = d.getFullYear();
+  renderIncome();
+  switchTab('other');
+  showToast('✅ Income saved!', 'success');
+  showPage('income');
+}
+
+function updateOthSugg() {
+  const descs = [...new Set(D.other.map(o => o.description))].sort();
+  document.getElementById('oth-sugg').innerHTML = descs.map(d => `<option value="${d}">`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// DELETE
+// ══════════════════════════════════════════════════
+function delEntry(type, id, label) {
+  pendingDel = {type, id};
+  document.getElementById('del-msg').textContent =
+    `Delete "${label}"? This action cannot be undone.`;
+  document.getElementById('del-modal').classList.add('open');
+}
+function closeDelModal() { document.getElementById('del-modal').classList.remove('open'); pendingDel = null; }
+function confirmDel() {
+  if (!pendingDel) { closeDelModal(); return; }
+  const {type, id} = pendingDel;
+  if (type === 'trading')  D.trading  = D.trading.filter(t => t.id !== id);
+  if (type === 'dividend') D.dividends = D.dividends.filter(d => d.id !== id);
+  if (type === 'other')    D.other    = D.other.filter(o => o.id !== id);
+  save(); renderIncome();
+  showToast('🗑️ Deleted.', 'info');
+  closeDelModal();
+}
+
+// ══════════════════════════════════════════════════
+// BROKER MANAGER
+// ══════════════════════════════════════════════════
+function openBrokerMgr() {
+  tempBrokers = JSON.parse(JSON.stringify(D.brokers));
+  renderBrokerList();
+  document.getElementById('broker-modal').classList.add('open');
+}
+function closeBrokerMgr() { document.getElementById('broker-modal').classList.remove('open'); }
+function renderBrokerList() {
+  document.getElementById('broker-mgr-list').innerHTML = tempBrokers.map((b, i) => `
+    <div class="mgr-item">
+      <div class="mgr-item-top">
+        <span style="font-size:16px;">🏦</span>
+        <span class="mgr-item-lbl" id="broker-lbl-${i}">${b.name}</span>
+        <div class="mgr-actions">
+          <button class="btn-icon" onclick="toggleBrokerEdit(${i})">✏️</button>
+          <button class="btn-icon del" onclick="removeTempBroker(${i})">🗑️</button>
+        </div>
+      </div>
+      <div class="mgr-edit-row" id="broker-edit-${i}">
+        <input class="mgr-name-inp" id="broker-inp-${i}" value="${b.name}" placeholder="Broker name"
+          oninput="tempBrokers[${i}].name=this.value;document.getElementById('broker-lbl-${i}').textContent=this.value;">
+      </div>
+    </div>`).join('');
+}
+function toggleBrokerEdit(i) {
+  const row = document.getElementById('broker-edit-' + i);
+  const isOpen = row.classList.contains('open');
+  document.querySelectorAll('[id^="broker-edit-"]').forEach(e => e.classList.remove('open'));
+  if (!isOpen) { row.classList.add('open'); setTimeout(() => { const inp = document.getElementById('broker-inp-'+i); if(inp) inp.focus(); }, 50); }
+}
+function removeTempBroker(i) { tempBrokers.splice(i,1); renderBrokerList(); }
+function addBroker() {
+  const name = document.getElementById('new-broker-name').value.trim();
+  if (!name) { showToast('Enter a broker name.', 'error'); return; }
+  if (tempBrokers.some(b => b.name.toLowerCase() === name.toLowerCase())) { showToast('Already exists.', 'error'); return; }
+  tempBrokers.push({id:'b'+Date.now(), name});
+  document.getElementById('new-broker-name').value = '';
+  renderBrokerList();
+}
+function saveBrokerMgr() {
+  if (!tempBrokers.length) { showToast('Need at least one broker.', 'error'); return; }
+  D.brokers = tempBrokers;
+  save(); closeBrokerMgr(); renderTrading();
+  showToast('✅ Brokers saved!', 'success');
+}
+
+// ══════════════════════════════════════════════════
+// TRADE TYPE MANAGER
+// ══════════════════════════════════════════════════
+function openTradeCatMgr() {
+  tempTradeCats = JSON.parse(JSON.stringify(D.tradeCats));
+  renderTradeCatList();
+  document.getElementById('tradecat-modal').classList.add('open');
+}
+function closeTradeCatMgr() { document.getElementById('tradecat-modal').classList.remove('open'); }
+function renderTradeCatList() {
+  document.getElementById('tradecat-mgr-list').innerHTML = tempTradeCats.map((c, i) => `
+    <div class="mgr-item">
+      <div class="mgr-item-top">
+        <span style="font-size:16px;">📋</span>
+        <span class="mgr-item-lbl" id="tc-lbl-${i}">${c.name}</span>
+        <div class="mgr-actions">
+          <button class="btn-icon" onclick="toggleTCEdit(${i})">✏️</button>
+          <button class="btn-icon del" onclick="removeTempTC(${i})">🗑️</button>
+        </div>
+      </div>
+      <div class="mgr-edit-row" id="tc-edit-${i}">
+        <input class="mgr-name-inp" id="tc-inp-${i}" value="${c.name}" placeholder="Trade type"
+          oninput="tempTradeCats[${i}].name=this.value;document.getElementById('tc-lbl-${i}').textContent=this.value;">
+      </div>
+    </div>`).join('');
+}
+function toggleTCEdit(i) {
+  const row = document.getElementById('tc-edit-' + i);
+  const isOpen = row.classList.contains('open');
+  document.querySelectorAll('[id^="tc-edit-"]').forEach(e => e.classList.remove('open'));
+  if (!isOpen) { row.classList.add('open'); setTimeout(() => { const inp = document.getElementById('tc-inp-'+i); if(inp) inp.focus(); }, 50); }
+}
+function removeTempTC(i) { tempTradeCats.splice(i,1); renderTradeCatList(); }
+function addTradeCat() {
+  const name = document.getElementById('new-tradecat-name').value.trim();
+  if (!name) { showToast('Enter a trade type name.', 'error'); return; }
+  if (tempTradeCats.some(c => c.name.toLowerCase() === name.toLowerCase())) { showToast('Already exists.', 'error'); return; }
+  tempTradeCats.push({id:'tc'+Date.now(), name});
+  document.getElementById('new-tradecat-name').value = '';
+  renderTradeCatList();
+}
+function saveTradeCatMgr() {
+  if (!tempTradeCats.length) { showToast('Need at least one trade type.', 'error'); return; }
+  D.tradeCats = tempTradeCats;
+  save(); closeTradeCatMgr(); renderTrading();
+  showToast('✅ Trade types saved!', 'success');
+}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════
+function populateDashYears() {
+  const years = new Set();
+  D.trading.forEach(t  => years.add(t.monthYear.substr(0,4)));
+  D.dividends.forEach(d => years.add(d.date.substr(0,4)));
+  D.other.forEach(o    => years.add(o.date.substr(0,4)));
+  const sel = document.getElementById('d-year');
+  const cur = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  [...years].sort((a,b) => b-a).forEach(y => {
+    const o = document.createElement('option'); o.value = y; o.textContent = y; sel.appendChild(o);
+  });
+  if ([...years].includes(cur)) sel.value = cur;
+}
+
+function resetDash() {
+  document.getElementById('d-year').value  = 'all';
+  document.getElementById('d-month').value = 'all';
+  renderDashboard();
+}
+
+function destroyCharts() {
+  Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+  dashCharts = {};
+}
+
+function renderDashboard() {
+  destroyCharts();
+  populateDashYears();
+
+  const yr = document.getElementById('d-year').value;
+  const mn = document.getElementById('d-month').value;
+
+  function matchFilter(dateOrMY, isMonthYear=false) {
+    const key = isMonthYear ? dateOrMY : dateOrMY.substr(0,7).replace('-','-');
+    const y = (isMonthYear ? dateOrMY : dateOrMY).substr(0,4);
+    const mIdx = isMonthYear ? parseInt(dateOrMY.substr(5,2))-1 : parseInt(dateOrMY.substr(5,2))-1;
+    if (yr !== 'all' && y !== yr) return false;
+    if (mn !== 'all' && MONTHS[mIdx] !== mn) return false;
+    return true;
+  }
+
+  // Aggregate by month
+  const monthMap = {};
+  function addToMonth(mk, type, net) {
+    if (!monthMap[mk]) monthMap[mk] = {trading:0, dividend:0, other:0};
+    monthMap[mk][type] += net;
+  }
+
+  D.trading.filter(t  => matchFilter(t.monthYear, true))
+    .forEach(t  => addToMonth(t.monthYear, 'trading',  t.net||0));
+  D.dividends.filter(d => matchFilter(d.date))
+    .forEach(d  => addToMonth(d.date.substr(0,7), 'dividend', d.net||0));
+  D.other.filter(o    => matchFilter(o.date))
+    .forEach(o  => addToMonth(o.date.substr(0,7), 'other',    o.net||0));
+
+  const mKeys  = Object.keys(monthMap).sort();
+  const mLabels = mKeys.map(k => { const p=k.split('-'); return MONTHS[parseInt(p[1])-1].substr(0,3)+' '+p[0].substr(2); });
+
+  const totTrading  = Object.values(monthMap).reduce((s,m) => s+m.trading,  0);
+  const totDividend = Object.values(monthMap).reduce((s,m) => s+m.dividend, 0);
+  const totOther    = Object.values(monthMap).reduce((s,m) => s+m.other,    0);
+  const totTotal    = totTrading + totDividend + totOther;
+
+  const el = document.getElementById('dash-content');
+
+  if (!mKeys.length) {
+    el.innerHTML = `<div class="empty-state"><div class="ei">📊</div><h3>No data for selected filters</h3><p>Add income entries or adjust filters.</p></div>`;
+    return;
+  }
+
+  // Filtered detail arrays for tables
+  const tradingRows  = D.trading.filter(t  => matchFilter(t.monthYear, true));
+  const dividendRows = D.dividends.filter(d => matchFilter(d.date));
+  const otherRows    = D.other.filter(o    => matchFilter(o.date));
+
+  el.innerHTML = `
+    <!-- KPI Cards -->
+    <div class="kpi-row">
+      <div class="kpi kpi-trading">
+        <div class="kpi-lbl">Trading Income</div>
+        <div class="kpi-val" style="color:var(--blue);">₹${fmt(totTrading,0)}</div>
+        <div class="kpi-sub">Net after charges</div>
+      </div>
+      <div class="kpi kpi-dividend">
+        <div class="kpi-lbl">Dividend Income</div>
+        <div class="kpi-val" style="color:var(--teal);">₹${fmt(totDividend,0)}</div>
+        <div class="kpi-sub">Net after TDS</div>
+      </div>
+      <div class="kpi kpi-other">
+        <div class="kpi-lbl">Other Income</div>
+        <div class="kpi-val" style="color:var(--purple);">₹${fmt(totOther,0)}</div>
+        <div class="kpi-sub">Net after TDS</div>
+      </div>
+      <div class="kpi kpi-total">
+        <div class="kpi-lbl">Total Net Income</div>
+        <div class="kpi-val" style="color:var(--gold);">₹${fmt(totTotal,0)}</div>
+        <div class="kpi-sub">${mKeys.length} month${mKeys.length!==1?'s':''} shown</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-card full" style="margin-bottom:11px;">
+      <div class="chart-ttl">📅 Monthly Income Breakdown (₹)</div>
+      <div class="chart-wrap tall"><canvas id="chart-stacked"></canvas></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-ttl">🍩 Income Mix</div>
+        <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-ttl">📈 Total Monthly Income</div>
+        <div class="chart-wrap"><canvas id="chart-total"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Trading Table -->
+    ${tradingRows.length ? `
+    <div class="tbl-card">
+      <div class="tbl-hdr trading"><h3>📈 Trading Details</h3><span>${tradingRows.length} entries</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>Broker</th><th>Type</th><th style="text-align:right;">Gross (₹)</th><th style="text-align:right;">Tax/Charges (₹)</th><th style="text-align:right;">Net (₹)</th></tr></thead>
+          <tbody>
+            ${tradingRows.sort((a,b)=>b.monthYear.localeCompare(a.monthYear)).map(t=>`
+              <tr>
+                <td>${MONTHS[parseInt(t.monthYear.substr(5,2))-1].substr(0,3)} ${t.monthYear.substr(0,4)}</td>
+                <td style="font-weight:600;">${t.brokerName}</td>
+                <td>${t.catName}</td>
+                <td style="text-align:right;color:${t.gross>=0?'var(--green)':'var(--red)'};">₹${fmt(t.gross)}</td>
+                <td style="text-align:right;color:var(--red);">₹${fmt(t.tax||0)}</td>
+                <td style="text-align:right;font-weight:700;color:${t.net>=0?'var(--blue)':'var(--red)'};">₹${fmt(t.net)}</td>
+              </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr class="tfoot-row">
+              <td colspan="3">TOTAL</td>
+              <td style="text-align:right;">₹${fmt(tradingRows.reduce((s,t)=>s+t.gross,0))}</td>
+              <td style="text-align:right;">₹${fmt(tradingRows.reduce((s,t)=>s+(t.tax||0),0))}</td>
+              <td style="text-align:right;">₹${fmt(tradingRows.reduce((s,t)=>s+t.net,0))}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <!-- Dividend Table -->
+    ${dividendRows.length ? `
+    <div class="tbl-card">
+      <div class="tbl-hdr dividend"><h3>💹 Dividend Details</h3><span>${dividendRows.length} entries</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Stock / Fund</th><th style="text-align:right;">Dividend (₹)</th><th style="text-align:right;">TDS (₹)</th><th style="text-align:right;">Net (₹)</th><th>Notes</th></tr></thead>
+          <tbody>
+            ${dividendRows.sort((a,b)=>b.date.localeCompare(a.date)).map(d=>`
+              <tr>
+                <td>${fmtD(d.date)}</td>
+                <td style="font-weight:600;">${d.stock}</td>
+                <td style="text-align:right;">₹${fmt(d.amount)}</td>
+                <td style="text-align:right;color:var(--red);">₹${fmt(d.tax||0)}</td>
+                <td style="text-align:right;font-weight:700;color:var(--teal);">₹${fmt(d.net)}</td>
+                <td style="font-size:11px;color:var(--muted);">${d.notes||'—'}</td>
+              </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr class="tfoot-row">
+              <td colspan="2">TOTAL</td>
+              <td style="text-align:right;">₹${fmt(dividendRows.reduce((s,d)=>s+d.amount,0))}</td>
+              <td style="text-align:right;">₹${fmt(dividendRows.reduce((s,d)=>s+(d.tax||0),0))}</td>
+              <td style="text-align:right;">₹${fmt(dividendRows.reduce((s,d)=>s+d.net,0))}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <!-- Other Income Table -->
+    ${otherRows.length ? `
+    <div class="tbl-card">
+      <div class="tbl-hdr other"><h3>🪙 Other Income Details</h3><span>${otherRows.length} entries</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th style="text-align:right;">Amount (₹)</th><th style="text-align:right;">TDS (₹)</th><th style="text-align:right;">Net (₹)</th><th>Notes</th></tr></thead>
+          <tbody>
+            ${otherRows.sort((a,b)=>b.date.localeCompare(a.date)).map(o=>`
+              <tr>
+                <td>${fmtD(o.date)}</td>
+                <td style="font-weight:600;">${o.description}</td>
+                <td style="text-align:right;">₹${fmt(o.amount)}</td>
+                <td style="text-align:right;color:var(--red);">₹${fmt(o.tax||0)}</td>
+                <td style="text-align:right;font-weight:700;color:var(--purple);">₹${fmt(o.net)}</td>
+                <td style="font-size:11px;color:var(--muted);">${o.notes||'—'}</td>
+              </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr class="tfoot-row">
+              <td colspan="2">TOTAL</td>
+              <td style="text-align:right;">₹${fmt(otherRows.reduce((s,o)=>s+o.amount,0))}</td>
+              <td style="text-align:right;">₹${fmt(otherRows.reduce((s,o)=>s+(o.tax||0),0))}</td>
+              <td style="text-align:right;">₹${fmt(otherRows.reduce((s,o)=>s+o.net,0))}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>` : ''}
+  `;
+
+  // Stacked bar chart
+  dashCharts.stacked = new Chart(document.getElementById('chart-stacked'), {
+    type: 'bar',
+    data: {
+      labels: mLabels,
+      datasets: [
+        {label:'Trading', data:mKeys.map(k=>monthMap[k].trading),  backgroundColor:'rgba(29,78,216,.75)',  borderRadius:4},
+        {label:'Dividend',data:mKeys.map(k=>monthMap[k].dividend), backgroundColor:'rgba(13,148,136,.75)', borderRadius:4},
+        {label:'Other',   data:mKeys.map(k=>monthMap[k].other),    backgroundColor:'rgba(124,58,237,.75)', borderRadius:4}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top'},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ₹${c.parsed.y.toLocaleString('en-IN')}`}}},
+      scales:{
+        x:{stacked:true, grid:{display:false}},
+        y:{stacked:true, ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')}}
+      }
+    }
+  });
+
+  // Pie chart — income mix
+  const pieData = [
+    {label:'Trading',  val:totTrading,  col:'rgba(29,78,216,.8)'},
+    {label:'Dividend', val:totDividend, col:'rgba(13,148,136,.8)'},
+    {label:'Other',    val:totOther,    col:'rgba(124,58,237,.8)'}
+  ].filter(d => d.val > 0);
+
+  dashCharts.pie = new Chart(document.getElementById('chart-pie'), {
+    type: 'doughnut',
+    data:{
+      labels: pieData.map(d=>d.label),
+      datasets:[{data:pieData.map(d=>d.val), backgroundColor:pieData.map(d=>d.col), borderWidth:2, borderColor:'#fff'}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}}}}
+  });
+
+  // Total line chart
+  dashCharts.total = new Chart(document.getElementById('chart-total'), {
+    type:'line',
+    data:{
+      labels:mLabels,
+      datasets:[{
+        label:'Total Net Income',
+        data:mKeys.map(k=>monthMap[k].trading+monthMap[k].dividend+monthMap[k].other),
+        borderColor:'#c47c2b', backgroundColor:'rgba(196,124,43,.12)',
+        borderWidth:2.5, fill:true, tension:.4,
+        pointBackgroundColor:'#c47c2b', pointRadius:5
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>`₹${c.parsed.y.toLocaleString('en-IN')}`}}},
+      scales:{
+        y:{beginAtZero:false, ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')}},
+        x:{grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ══════════════════════════════════════════════════
+function exportData() {
+  const hasData = D.trading.length || D.dividends.length || D.other.length;
+  if (!hasData) { showToast('No data to export.', 'error'); return; }
+  const blob = new Blob([JSON.stringify({...D, exportedAt:new Date().toISOString()}, null, 2)],
+    {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'income-register-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('✅ Exported!', 'success');
+}
+
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const obj = JSON.parse(ev.target.result);
+      let added = 0;
+      if (Array.isArray(obj.trading))   { obj.trading.forEach(t   => { if (!D.trading.find(x=>x.id===t.id))   { D.trading.push(t);   added++; }}); }
+      if (Array.isArray(obj.dividends)) { obj.dividends.forEach(d => { if (!D.dividends.find(x=>x.id===d.id)) { D.dividends.push(d); added++; }}); }
+      if (Array.isArray(obj.other))     { obj.other.forEach(o     => { if (!D.other.find(x=>x.id===o.id))     { D.other.push(o);     added++; }}); }
+      if (Array.isArray(obj.brokers)   && obj.brokers.length)   D.brokers   = obj.brokers;
+      if (Array.isArray(obj.tradeCats) && obj.tradeCats.length) D.tradeCats = obj.tradeCats;
+      save(); renderIncome();
+      showToast(`✅ Imported ${added} entr${added!==1?'ies':'y'}!`, 'success');
+    } catch(err) { showToast('❌ Invalid file.', 'error'); }
+    e.target.value = '';
+  };
+  r.readAsText(file);
+}
+
+// ══════════════════════════════════════════════════
+// PAGE ROUTING
+// ══════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('nav-' + name.split('-')[0]);
+  if (btn) btn.classList.add('active');
+  if (name === 'income')    renderIncome();
+  if (name === 'dashboard') renderDashboard();
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  renderIncome();
+  switchTab('trading');
+});
+</script>
+</body>
+</html>
