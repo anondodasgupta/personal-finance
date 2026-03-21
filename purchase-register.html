@@ -1354,13 +1354,28 @@ function renderDash() {
     if (uItems.indexOf(i.itemName) === -1) uItems.push(i.itemName);
     if (i.brand && uBrands.indexOf(i.brand) === -1) uBrands.push(i.brand);
   });
-  var catMap = {}, monthMap = {}, payMap = {};
+  var catMap = {}, monthMap = {}, payMap = {}, billPayTotals = {};
+  // First pass: aggregate bill-level payment totals to handle dual payment correctly
+  D.bills.forEach(function(b) {
+    if (!b.date) return;
+    var yr2 = document.getElementById('d-year').value;
+    var mn2 = document.getElementById('d-month').value;
+    var d2 = new Date(b.date + 'T00:00:00');
+    if (yr2 !== 'all' && d2.getFullYear() != yr2) return;
+    if (mn2 !== 'all' && MONTHS[d2.getMonth()] !== mn2) return;
+    var bt = b.items.reduce(function(s,i){return s+i.amount;},0);
+    var pm1 = (b.paymentMethod==='Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod||'Unknown');
+    var pm2 = b.paymentMethod2 ? ((b.paymentMethod2==='Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    var a2 = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    var a1 = bt - a2;
+    payMap[pm1] = (payMap[pm1]||0) + a1;
+    if (pm2) payMap[pm2] = (payMap[pm2]||0) + a2;
+  });
+  // Second pass: category and month aggregation at item level
   items.forEach(function(i){
     catMap[i.category] = (catMap[i.category] || 0) + i.amount;
     var k = i.billDate.substr(0,7);
     monthMap[k] = (monthMap[k] || 0) + i.amount;
-    var pm = (i.paymentMethod === 'Other' && i.paymentOther) ? i.paymentOther : (i.paymentMethod || 'Unknown');
-    payMap[pm] = (payMap[pm] || 0) + i.amount;
   });
   var topCatEntry = Object.entries(catMap).sort(function(a,b){ return b[1]-a[1]; })[0];
   var mKeys = Object.keys(monthMap).sort();

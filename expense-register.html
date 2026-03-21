@@ -1245,8 +1245,12 @@ function renderDashboard() {
   // Payment breakdown
   const payMap = {};
   data.forEach(e => {
-    const pm = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || 'Unknown');
-    payMap[pm] = (payMap[pm]||0) + e.amount;
+    const pm1 = (e.paymentMethod==='Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod||'Unknown');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2==='Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+    payMap[pm1] = (payMap[pm1]||0) + a1;
+    if (pm2) payMap[pm2] = (payMap[pm2]||0) + a2;
   });
 
   const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];

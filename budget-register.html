@@ -858,14 +858,22 @@ function renderBudget() {
   const CC_NAMES = new Set(D.ccCards.map(c => c.name));
   if (items.length) {
     const srcMap = {};
-    // Add CC bill items under their bank source
+    // Add CC bill items under their bank source (with dual payment split)
     ccBillItems.forEach(it => {
-      const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
+      const s1  = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
+      const s2  = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
+      const a2  = (it.source2 && it.amt2) ? it.amt2 : 0;
+      const bgt1= (it.budget||0) - a2;
+      const act1= Math.max(0, (actMap[it.desc.trim().toLowerCase()]||0) - a2);
+      const act2= Math.min(a2, actMap[it.desc.trim().toLowerCase()]||0);
       if (!srcMap[s1]) srcMap[s1]={budget:0,actual:0};
-      srcMap[s1].budget += (it.budget||0);
-      // Actual for CC bill = sum of actual expenses paid by that card this cycle
-      // We use the budget as proxy here since actuals are tracked at expense level
-      srcMap[s1].actual += (it.budget||0); // CC bill actual ≈ bill amount
+      srcMap[s1].budget += bgt1;
+      srcMap[s1].actual += act1;
+      if (s2) {
+        if (!srcMap[s2]) srcMap[s2]={budget:0,actual:0};
+        srcMap[s2].budget += a2;
+        srcMap[s2].actual += act2;
+      }
     });
     // Add non-CC expense items paid directly by bank/cash (not by a credit card)
     expenseItems.forEach(it => {
@@ -929,11 +937,8 @@ function renderBudget() {
   Object.keys(byCat).sort().forEach(cat => {
     const catItems = byCat[cat];
     const catBgt   = catItems.reduce((s,i)=>s+(i.budget||0),0);
-    // For CC bill category: actual = budget (bill is the actual)
-    // For other categories: actual from registers
-    const catAct = cat === 'Credit Card Bills'
-      ? catBgt
-      : catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
+    // Actual from registers for all categories (CC bills show 0 if not yet paid)
+    const catAct = catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
 
     html += `<div class="budget-table-wrap">
       <div class="bgt-header">
@@ -946,13 +951,12 @@ function renderBudget() {
 
     catItems.forEach(it => {
       const isCCBill = it.cat === 'Credit Card Bills';
-      const act = isCCBill
-        ? (it.budget||0)   // CC bill: actual = budgeted amount (bill is what you pay)
-        : (actMap[it.desc.trim().toLowerCase()] || 0);
+      // CC bill actual = expense entry for that payment in the CURRENT budget month
+      // If not yet paid (no entry in current month), shows 0
+      const act = actMap[it.desc.trim().toLowerCase()] || 0;
       const vr  = (it.budget||0) - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
-      const vrT = isCCBill ? '<span style="color:var(--muted);font-size:10px;">Auto-tracked</span>'
-        : (vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),0));
+      const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),0);
       const sCol= SRC_COLOR[it.source] || '#6b7280';
 
       html += `<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
