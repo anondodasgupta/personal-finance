@@ -804,74 +804,103 @@ function renderBudget() {
   const items = D.budgets[key] || [];
   const actMap = getActualsForMonth(curYear, curMonth);
 
+  // Separate CC bill items from regular expense items
+  const ccBillItems  = items.filter(it => it.cat === 'Credit Card Bills');
+  const expenseItems = items.filter(it => it.cat !== 'Credit Card Bills');
+
+  // KPI totals: use expense items only (CC bills duplicate underlying expenses)
+  // For actual spend: use actMap for expense items only (bank outflows)
   let totBgt = 0, totAct = 0;
-  items.forEach(it => {
+  expenseItems.forEach(it => {
     totBgt += (it.budget||0);
     totAct += actMap[it.desc.trim().toLowerCase()] || 0;
   });
-  const variance = totBgt - totAct;
+  // Add CC bill budgets separately (these represent bank outflows for CC payments)
+  let totCCBgt = ccBillItems.reduce((s,i)=>s+(i.budget||0), 0);
+  const grandBgt = totBgt + totCCBgt;  // total of everything
+  const variance = totBgt - totAct;    // variance on non-CC expenses only
 
-  // Summary pills
-  document.getElementById('bgt-summary').innerHTML = `
+  // Summary pills — show grand budget, actual non-CC spend, variance on expenses
+  document.getElementById('bgt-summary').innerHTML = \`
     <div class="sum-pill">
-      <div class="sum-pill-lbl">Budgeted</div>
-      <div class="sum-pill-val">&#8377;${fmt(totBgt,0)}</div>
-      <div class="sum-pill-sub">${items.length} items</div>
+      <div class="sum-pill-lbl">Total Budgeted</div>
+      <div class="sum-pill-val">&#8377;\${fmt(grandBgt,0)}</div>
+      <div class="sum-pill-sub">incl. CC bills</div>
     </div>
-    <div class="sum-pill ${totAct>totBgt?'red':'green'}">
+    <div class="sum-pill">
+      <div class="sum-pill-lbl">Expense Budget</div>
+      <div class="sum-pill-val">&#8377;\${fmt(totBgt,0)}</div>
+      <div class="sum-pill-sub">\${expenseItems.length} items (excl. CC)</div>
+    </div>
+    <div class="sum-pill \${totAct>totBgt?'red':'green'}">
       <div class="sum-pill-lbl">Actual Spend</div>
-      <div class="sum-pill-val">&#8377;${fmt(totAct,0)}</div>
+      <div class="sum-pill-val">&#8377;\${fmt(totAct,0)}</div>
       <div class="sum-pill-sub">live from registers</div>
     </div>
-    <div class="sum-pill ${variance>=0?'green':'red'}">
+    <div class="sum-pill \${variance>=0?'green':'red'}">
       <div class="sum-pill-lbl">Variance</div>
-      <div class="sum-pill-val">${variance>=0?'+':''}&#8377;${fmt(Math.abs(variance),0)}</div>
-      <div class="sum-pill-sub">${variance>=0?'Under budget':'Over budget'}</div>
-    </div>
-    <div class="sum-pill blue">
-      <div class="sum-pill-lbl">Month</div>
-      <div class="sum-pill-val" style="font-size:14px;">${MONTHS[curMonth].substr(0,3)}</div>
-      <div class="sum-pill-sub">${curYear}</div>
-    </div>`;
+      <div class="sum-pill-val">\${variance>=0?'+':''}&#8377;\${fmt(Math.abs(variance),0)}</div>
+      <div class="sum-pill-sub">\${variance>=0?'Under budget':'Over budget'}</div>
+    </div>\`;
 
-  // Payment source summary
+  // Payment source summary — bank accounts only (real cash outflows)
+  // CC bill items: their source is the bank account (e.g. ICICI pays HDFC CC bill)
+  // Regular items paid by CC: the CC card collects them, bank pays the bill
+  // So for source summary: 
+  //   - CC bill items → count under their bank source (payFrom)
+  //   - Regular items paid directly by bank/cash → count under that source
+  //   - Regular items paid by CC → NOT counted here (covered by CC bill)
+  const CC_NAMES = new Set(D.ccCards.map(c => c.name));
   if (items.length) {
-    const srcMap = {};   // source -> {budget, actual}
-    items.forEach(it => {
-      const s1  = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
-      const s2  = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
+    const srcMap = {};
+    // Add CC bill items under their bank source
+    ccBillItems.forEach(it => {
+      const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
+      if (!srcMap[s1]) srcMap[s1]={budget:0,actual:0};
+      srcMap[s1].budget += (it.budget||0);
+      // Actual for CC bill = sum of actual expenses paid by that card this cycle
+      // We use the budget as proxy here since actuals are tracked at expense level
+      srcMap[s1].actual += (it.budget||0); // CC bill actual ≈ bill amount
+    });
+    // Add non-CC expense items paid directly by bank/cash (not by a credit card)
+    expenseItems.forEach(it => {
+      const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
+      const s2 = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
       const act = actMap[it.desc.trim().toLowerCase()] || 0;
       const bgt = it.budget || 0;
       const amt2= it.amt2 || 0;
-      const bgt1= s2 ? (bgt - amt2) : bgt;
-      if (!srcMap[s1]) srcMap[s1]={budget:0,actual:0};
-      srcMap[s1].budget += bgt1;
-      srcMap[s1].actual += (s2 ? Math.max(0,act - amt2) : act);
-      if (s2) {
+      // Only include if paid directly by bank/cash (not a CC)
+      if (!CC_NAMES.has(s1)) {
+        if (!srcMap[s1]) srcMap[s1]={budget:0,actual:0};
+        srcMap[s1].budget += s2 ? (bgt - amt2) : bgt;
+        srcMap[s1].actual += s2 ? Math.max(0, act - amt2) : act;
+      }
+      if (s2 && !CC_NAMES.has(s2)) {
         if (!srcMap[s2]) srcMap[s2]={budget:0,actual:0};
         srcMap[s2].budget += amt2;
         srcMap[s2].actual += Math.min(act, amt2);
       }
     });
+
     const srcEl = document.getElementById('bgt-source-summary');
     srcEl.style.display = 'block';
-    let srcHtml = `<div class="source-summary-title">
-      <span>&#128179; Payment Source Summary</span>
+    let srcHtml = \`<div class="source-summary-title">
+      <span>&#128179; Payment Source Summary (Bank Outflows)</span>
       <span style="font-size:11px;color:var(--muted);">Budget vs Actual</span>
     </div>
     <div class="source-row hdr-row">
       <div>Source</div><div style="text-align:right;">Budget (&#8377;)</div>
       <div style="text-align:right;">Actual (&#8377;)</div><div style="text-align:right;">Variance</div>
-    </div>`;
+    </div>\`;
     Object.entries(srcMap).sort((a,b)=>b[1].budget-a[1].budget).forEach(([src, v]) => {
       const vr = v.budget - v.actual;
       const col = SRC_COLOR[src] || '#6b7280';
-      srcHtml += `<div class="source-row">
-        <div class="source-name" style="color:${col};">&#128179; ${esc(src)}</div>
-        <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
-        <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
-        <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
-      </div>`;
+      srcHtml += \`<div class="source-row">
+        <div class="source-name" style="color:\${col};">&#128179; \${esc(src)}</div>
+        <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;\${fmt(v.budget,0)}</div>
+        <div style="text-align:right;font-size:12px;color:\${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;\${fmt(v.actual,0)}</div>
+        <div style="text-align:right;font-size:11px;font-weight:700;color:\${vr>=0?'var(--green)':'var(--red)'};">\${vr>=0?'&#9660;':'&#9650;'}&#8377;\${fmt(Math.abs(vr),0)}</div>
+      </div>\`;
     });
     srcEl.innerHTML = srcHtml;
   } else {
@@ -879,15 +908,15 @@ function renderBudget() {
   }
 
   if (!items.length) {
-    document.getElementById('bgt-content').innerHTML = `
+    document.getElementById('bgt-content').innerHTML = \`
       <div class="empty-state"><div class="ei">&#128203;</div>
-        <h3>No budget items for ${MONTHS[curMonth]} ${curYear}</h3>
+        <h3>No budget items for \${MONTHS[curMonth]} \${curYear}</h3>
         <p>Tap Auto-populate to pull from last month, or add items manually below.</p>
-      </div>`;
+      </div>\`;
     return;
   }
 
-  // Group by category
+  // Group ALL items by category for display (show everything)
   const byCat = {};
   items.forEach(it => { if (!byCat[it.cat]) byCat[it.cat]=[]; byCat[it.cat].push(it); });
 
@@ -895,42 +924,49 @@ function renderBudget() {
   Object.keys(byCat).sort().forEach(cat => {
     const catItems = byCat[cat];
     const catBgt   = catItems.reduce((s,i)=>s+(i.budget||0),0);
-    const catAct   = catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
+    // For CC bill category: actual = budget (bill is the actual)
+    // For other categories: actual from registers
+    const catAct = cat === 'Credit Card Bills'
+      ? catBgt
+      : catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
 
-    html += `<div class="budget-table-wrap">
+    html += \`<div class="budget-table-wrap">
       <div class="bgt-header">
-        <div class="bgt-header-title">${esc(cat)}</div>
-        <div class="bgt-header-total">&#8377;${fmt(catBgt,0)} bgt &nbsp;&#183;&nbsp; &#8377;${fmt(catAct,0)} actual</div>
+        <div class="bgt-header-title">\${esc(cat)}</div>
+        <div class="bgt-header-total">&#8377;\${fmt(catBgt,0)} bgt &nbsp;&#183;&nbsp; &#8377;\${fmt(catAct,0)} actual</div>
       </div>
       <div class="bgt-row hdr" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>Description</div><div>Payment Source</div><div>Budget</div><div>Actual</div><div>Variance</div><div></div>
-      </div>`;
+      </div>\`;
 
     catItems.forEach(it => {
-      const act = actMap[it.desc.trim().toLowerCase()] || 0;
+      const isCCBill = it.cat === 'Credit Card Bills';
+      const act = isCCBill
+        ? (it.budget||0)   // CC bill: actual = budgeted amount (bill is what you pay)
+        : (actMap[it.desc.trim().toLowerCase()] || 0);
       const vr  = (it.budget||0) - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
-      const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),0);
+      const vrT = isCCBill ? '<span style="color:var(--muted);font-size:10px;">Auto-tracked</span>'
+        : (vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),0));
       const sCol= SRC_COLOR[it.source] || '#6b7280';
-      const iCC = it.cat === 'Credit Card Bills';
 
-      html += `<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
+      html += \`<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>
-          <div class="bgt-desc" title="${escQ(it.desc)}">${iCC?'&#128179; ':''}${esc(it.desc)}</div>
-          ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
+          <div class="bgt-desc" title="\${escQ(it.desc)}">\${isCCBill?'&#128179; ':''}\${esc(it.desc)}</div>
+          \${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
         </div>
-        <div class="bgt-src" style="color:${sCol};font-size:10px;">${esc(srcDisplay(it))}</div>
-        <div><input class="bgt-inp" type="number" value="${it.budget||0}"
-          onchange="updateBgt('${key}','${it.id}',this.value)"></div>
-        <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,0):'&#8212;'}</div>
-        <div class="bgt-var ${vrC}">${vrT}</div>
+        <div class="bgt-src" style="color:\${sCol};font-size:10px;">\${esc(srcDisplay(it))}</div>
+        <div><input class="bgt-inp" type="number" value="\${it.budget||0}"
+          onchange="updateBgt('\${key}','\${it.id}',this.value)"></div>
+        <div class="bgt-actual" style="color:\${act>0?'var(--text)':'var(--muted)'};">\${act>0?'&#8377;'+fmt(act,0):'&#8212;'}</div>
+        <div class="bgt-var \${vrC}">\${vrT}</div>
         <div style="display:flex;gap:4px;">
-          <button class="btn-icon" onclick="openEdit('${key}','${it.id}')">&#9998;</button>
-          <button class="btn-icon del" onclick="openDel('${key}','${it.id}','${escQ(it.desc)}')">&#128465;</button>
+          <button class="btn-icon" onclick="openEdit('\${key}','\${it.id}')">&#9998;</button>
+          <button class="btn-icon del" onclick="openDel('\${key}','\${it.id}','\${escQ(it.desc)}')">&#128465;</button>
         </div>
-      </div>`;
+      </div>\`;
     });
-    html += `</div>`;
+    html += \`</div>\`;
   });
 
   document.getElementById('bgt-content').innerHTML = html;
@@ -1393,10 +1429,13 @@ function renderDashboard() {
     const year=parseInt(y),month=parseInt(m)-1;
     const items=D.budgets[k]||[];
     const actMap=getActualsForMonth(year,month);
-    const bgt=items.reduce((s,i)=>s+(i.budget||0),0);
-    const act=items.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
+    // Exclude CC bill items from KPI/variance totals (they duplicate underlying expenses)
+    const expItems = items.filter(i=>i.cat!=='Credit Card Bills');
+    const bgt=expItems.reduce((s,i)=>s+(i.budget||0),0);
+    const act=expItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
     totBgt+=bgt; totAct+=act;
-    items.forEach(i=>{
+    // Category breakdown: all items except CC bills
+    expItems.forEach(i=>{
       catBgt[i.cat]=(catBgt[i.cat]||0)+(i.budget||0);
       catAct[i.cat]=(catAct[i.cat]||0)+(actMap[i.desc.trim().toLowerCase()]||0);
     });
