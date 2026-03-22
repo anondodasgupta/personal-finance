@@ -631,6 +631,44 @@ function getCCNamesSet() {
   return new Set(D.ccCards.map(c => c.name));
 }
 
+// Returns {cardName -> totalCharged} for all CC cards in a given calendar month.
+// Used by Outflow Summary to show CC spending per card.
+function getCCChargesForMonth(year, month) {
+  const prefix  = mk(year, month);
+  const charges = {};
+  D.ccCards.forEach(card => { charges[card.name] = 0; });
+
+  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
+    const eAmt  = parseFloat(e.amount)      || 0;
+    const pAmt2 = parseFloat(e.paymentAmt2) || 0;
+    const pm1   = e.paymentMethod  || '';
+    const pm2   = e.paymentMethod2 || '';
+    if (charges[pm1] !== undefined) {
+      const a1 = pm2 ? eAmt - pAmt2 : eAmt;
+      charges[pm1] += a1;
+    }
+    if (pm2 && charges[pm2] !== undefined) {
+      charges[pm2] += pAmt2;
+    }
+  });
+
+  getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
+    const tot   = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
+    const pAmt2 = parseFloat(b.paymentAmt2) || 0;
+    const pm1   = b.paymentMethod  || '';
+    const pm2   = b.paymentMethod2 || '';
+    if (charges[pm1] !== undefined) {
+      const a1 = pm2 ? tot - pAmt2 : tot;
+      charges[pm1] += a1;
+    }
+    if (pm2 && charges[pm2] !== undefined) {
+      charges[pm2] += pAmt2;
+    }
+  });
+
+  return charges;
+}
+
 // Only counts the direct-paid (non-CC) portion of each expense.
 // CC-paid amounts flow through the CC bill line item instead,
 // preventing CC charges from appearing as actuals in regular budget categories.
@@ -908,28 +946,12 @@ function renderBudget() {
 
   if (items.length) {
     // ── 1. Credit Cards group ──
-    // Budget = CC bill items in budget for THIS month (bills DUE this month, paid from any source)
-    // Actual = live charges from expense+purchase registers for each card's cycle ending this month
-    const ccBudgetMap = {}; // cardName -> budgeted bill amount
-    ccBillItems.forEach(it => {
-      // item desc is "CardName Bill" — strip " Bill" to get card name
-      const cardName = it.desc.replace(/ Bill$/i, '').trim();
-      ccBudgetMap[cardName] = (ccBudgetMap[cardName]||0) + (it.budget||0);
-    });
-
-    // Actual charges: for each CC card, find its cycle that is DUE in curMonth
-    const ccActualMap = {}; // cardName -> actual charges
-    D.ccCards.forEach(card => {
-      // Work backwards from due month to cycle-end month
-      let ceM = curMonth - card.dueOffset;
-      let ceY = curYear;
-      if (ceM < 0) { ceM += 12; ceY--; }
-      const bill = getCCBill(card, ceY, ceM);
-      ccActualMap[card.name] = bill.total;
-    });
-
-    // Also pick up any CC cards that appear in budget but aren't in D.ccCards config
-    // (handled by ccBudgetMap already — they just won't have an actual)
+    // Budget = previous month's actual CC spending per card (planning reference)
+    // Actual = current month's CC spending per card so far
+    let srcM = curMonth - 1, srcY = curYear;
+    if (srcM < 0) { srcM = 11; srcY--; }
+    const ccBudgetMap = getCCChargesForMonth(srcY, srcM);   // prev month charges
+    const ccActualMap = getCCChargesForMonth(curYear, curMonth); // cur month charges so far
 
     // ── 2. Bank / UPI / Other groups ──
     // Budget = budget items whose PRIMARY or SECONDARY source is a bank/cash (not CC)
@@ -989,12 +1011,12 @@ function renderBudget() {
     // Column header row
     let srcHtml = `<div class="source-summary-title">
       <span>&#128179; Outflow Summary</span>
-      <span style="font-size:11px;color:var(--muted);">Budget vs Actual by Source</span>
+      <span style="font-size:11px;color:var(--muted);">Prev Month Spend vs This Month Actual</span>
     </div>
     <div class="source-row hdr-row">
       <div>Source</div>
-      <div style="text-align:right;">Budget (&#8377;)</div>
-      <div style="text-align:right;">Actual (&#8377;)</div>
+      <div style="text-align:right;">Prev Month (&#8377;)</div>
+      <div style="text-align:right;">This Month (&#8377;)</div>
       <div style="text-align:right;">Variance</div>
     </div>`;
 
@@ -1191,34 +1213,38 @@ function autoPopulate() {
   const expenses = getExpenses().filter(e => e.date.startsWith(prevKey));
   const purchases= getPurchases().filter(b => b.date.startsWith(prevKey));
 
-  // Club ALL expenses by description with their full amounts.
-  // Every expense head from last month should appear in the budget regardless of payment method.
-  // CC bill lines are added separately below — the budget is for planning, actuals handle the separation.
+  // Club expenses by description — only the direct-paid (non-CC) portion.
+  // CC-paid items are captured separately via CC bill lines below.
   const grouped  = {};
+  const ccNamesAP = getCCNamesSet();
   expenses.forEach(e => {
-    const eAmt = parseFloat(e.amount) || 0;
-    if (!eAmt) return;
-    const pm1  = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
-    const pm2  = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
-    const a2   = pm2 ? (parseFloat(e.paymentAmt2) || 0) : 0;
-    const k    = e.description.trim();
+    const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+    const directAmt = (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
+    if (directAmt <= 0) return;
+    const k = e.description.trim();
     if (!grouped[k]) grouped[k] = {desc:k, cat:e.category||'Other', amount:0,
       source:pm1||'Other', sourceOther:e.paymentOther||'',
-      source2:pm2||'', amt2:a2, sourceOther2:e.paymentOther2||''};
-    grouped[k].amount += eAmt;
+      source2:pm2||'', amt2:pm2&&!ccNamesAP.has(pm2)?a2:0, sourceOther2:e.paymentOther2||''};
+    grouped[k].amount += directAmt;
   });
 
-  // Purchases — full amount regardless of payment method
+  // Purchases — only non-CC portion
   let purTot = 0;
   purchases.forEach(b => {
-    purTot += b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
+    const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
+    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    const a1  = tot - a2;
+    purTot += (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
   });
   if (purTot > 0) {
-    const pm  = purchases[0]?.paymentMethod || 'Other';
-    const pm2 = purchases[0]?.paymentMethod2 || '';
-    const a2  = pm2 ? (parseFloat(purchases[0]?.paymentAmt2) || 0) : 0;
-    grouped['Groceries & Purchases'] = {desc:'Groceries & Purchases', cat:'Groceries & Purchases',
-      amount:purTot, source:pm, sourceOther:'', source2:pm2, amt2:a2, sourceOther2:''};
+    const pm = purchases[0]?.paymentMethod || 'Other';
+    grouped['Groceries & Purchases'] = {desc:'Groceries & Purchases',cat:'Groceries & Purchases',
+      amount:purTot, source:pm, sourceOther:'', source2:'', amt2:0, sourceOther2:''};
   }
 
   let added = 0;
