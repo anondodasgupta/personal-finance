@@ -764,17 +764,17 @@ function renderBills() {
       if (pm2) payMap[pm2] = (payMap[pm2]||0) + a2;
     });
     var topPay = Object.entries(payMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,4)
-      .map(function(e){ return e[0]+': &#8377;'+e[1].toLocaleString('en-IN',{maximumFractionDigits:0}); }).join(' &bull; ');
+      .map(function(e){ return e[0]+': \u20b9'+e[1].toLocaleString('en-IN',{maximumFractionDigits:0}); }).join(' | ');
     summaryEl.innerHTML =
       '<div class="msp"><div class="msp-lbl">Bills</div><div class="msp-val">' + monthBills.length + '</div></div>' +
       '<div class="msp"><div class="msp-lbl">Items</div><div class="msp-val">' + totalItems + '</div></div>' +
-      '<div class="msp"><div class="msp-lbl">Total</div><div class="msp-val">&#8377;' +
+      '<div class="msp"><div class="msp-lbl">Total</div><div class="msp-val">\u20b9' +
         totalAmt.toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}) + '</div></div>' +
       (topPay ? '<div class="msp" style="grid-column:1/-1;"><div class="msp-lbl">By Payment Method</div>' +
         '<div style="font-size:11px;color:var(--forest);margin-top:3px;font-weight:600;">' + topPay + '</div></div>' : '');
   }
 
-  countEl.textContent = monthBills.length + ' bill' + (monthBills.length !== 1 ? 's' : '') + ' &bull; ' + MONTHS_PR[billsMonth];
+  countEl.textContent = monthBills.length + ' bill' + (monthBills.length !== 1 ? 's' : '') + ' - ' + MONTHS_PR[billsMonth];
 
   if (!monthBills.length) {
     el.innerHTML = '<div class="empty-state"><div class="ei">&#129502;</div>' +
@@ -795,7 +795,7 @@ function renderBills() {
     var catHtml = cats.slice(0,4).map(catBadge).join('');
     if (cats.length > 4) catHtml += '<span style="font-size:10px;color:var(--muted);align-self:center;">+' + (cats.length-4) + ' more</span>';
     html += '<div class="bill-card">';
-    html += '<div class="bill-card-body" onclick="editBill('' + b.id + '')">';
+    html += '<div class="bill-card-body" onclick="editBill(\'' + b.id + '\')">';
     html += '<div class="bill-card-top"><div class="bill-shop">&#127978; ' + b.shop + '</div><div class="bill-amt">&#8377;' + fmt(tot) + '</div></div>';
     html += '<div class="bill-meta"><span>&#128197; ' + fmtD(b.date) + '</span><span>&#128179; ' + pmDisplay + '</span>';
     if (b.invoiceNo) html += '<span>&#129534; ' + b.invoiceNo + '</span>';
@@ -805,33 +805,11 @@ function renderBills() {
     html += '<div class="bill-items-count">' + b.items.length + ' items</div>';
     html += '<div class="bill-payment">' + pmDisplay + '</div>';
     html += '<div style="display:flex;gap:5px;">';
-    html += '<button class="btn-icon" onclick="editBill('' + b.id + '');event.stopPropagation()">&#9998;</button>';
-    html += '<button class="btn-icon del" onclick="delBillConfirm('' + b.id + '');event.stopPropagation()">&#128465;</button>';
+    html += '<button class="btn-icon" onclick="editBill(\'' + b.id + '\');event.stopPropagation()">&#9998;</button>';
+    html += '<button class="btn-icon del" onclick="delBillConfirm(\'' + b.id + '\');event.stopPropagation()">&#128465;</button>';
     html += '</div></div></div>';
   });
   el.innerHTML = html;
-}
-// ── BILL ENTRY ─────────────────────────────────────────────────────────────
-function newBill() {
-  document.getElementById('edit-bill-id').value = '';
-  document.getElementById('e-shop').value = '';
-  document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
-  populatePaymentSelects();
-  document.getElementById('e-payment').selectedIndex = 0;
-  document.getElementById('e-invoice').value = '';
-  document.getElementById('e-notes').value = '';
-  document.getElementById('e-pay-other').value = '';
-  document.getElementById('pay-other-row').classList.remove('show');
-  document.getElementById('e-payment2').value = '';
-  document.getElementById('e-amt2').value = '';
-  document.getElementById('e-amt2-wrap').style.display = 'none';
-  document.getElementById('pay-other2-row').style.display = 'none';
-  document.getElementById('e-split-info').style.display = 'none';
-  curItems = [];
-  document.getElementById('entry-title').textContent = 'New Purchase Bill';
-  document.getElementById('entry-subtitle').textContent = 'Fill details and add items';
-  renderEntryItems();
-  showPage('entry');
 }
 
 function editBill(id) {
@@ -1119,6 +1097,7 @@ function pickEmoji(wrapperId, emoji) {
 // ── CATEGORY MANAGER ───────────────────────────────────────────────────────
 function openCatMgr() {
   tempCats = JSON.parse(JSON.stringify(D.categories));
+  tempCats.sort(function(a,b){ return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
   renderCatList();
   document.getElementById('cat-modal').classList.add('open');
 }
@@ -1178,7 +1157,7 @@ function addCategory() {
 }
 function saveCatMgr() {
   if (!tempCats.length) { showToast('Need at least one category.', 'error'); return; }
-  D.categories = tempCats;
+  D.categories = tempCats.slice().sort(function(a,b){ return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
   save(); closeCatMgr();
   showToast('✅ Categories saved!', 'success');
 }
@@ -1186,6 +1165,7 @@ function saveCatMgr() {
 // ── SHOP MANAGER ───────────────────────────────────────────────────────────
 function openShopMgr() {
   tempShops = JSON.parse(JSON.stringify(D.shops));
+  tempShops.sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
   renderShopList();
   document.getElementById('shop-modal').classList.add('open');
 }
@@ -1230,7 +1210,7 @@ function addShop() {
 }
 function saveShopMgr() {
   if (!tempShops.length) { showToast('Need at least one shop.', 'error'); return; }
-  D.shops = tempShops;
+  D.shops = tempShops.slice().sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
   save(); populateShopSelect(); closeShopMgr();
   showToast('✅ Shops saved!', 'success');
 }
@@ -1238,6 +1218,7 @@ function saveShopMgr() {
 // ── PAYMENT METHOD MANAGER ─────────────────────────────────────────────────
 function openPayMgr() {
   tempPays = JSON.parse(JSON.stringify(D.payments));
+  tempPays.sort(function(a,b){ return a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0; });
   renderPayList();
   document.getElementById('pay-modal').classList.add('open');
 }
@@ -1298,7 +1279,7 @@ function addPayMethod() {
 }
 function savePayMgr() {
   if (!tempPays.length) { showToast('Need at least one payment method.', 'error'); return; }
-  D.payments = tempPays;
+  D.payments = tempPays.slice().sort(function(a,b){ return a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0; });
   save(); populatePaymentSelects(); closePayMgr();
   showToast('✅ Payment methods saved!', 'success');
 }

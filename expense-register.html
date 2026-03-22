@@ -957,6 +957,7 @@ function updateDescSugg() {
 // ══════════════════════════════════════════════════
 function openCatMgr() {
   tempCats = JSON.parse(JSON.stringify(D.categories));
+  tempCats.sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
   renderCatList();
   document.getElementById('cat-modal').classList.add('open');
 }
@@ -1011,7 +1012,7 @@ function addCategory() {
 }
 function saveCatMgr() {
   if (!tempCats.length) { showToast('Need at least one category.', 'error'); return; }
-  D.categories = tempCats;
+  D.categories = tempCats.slice().sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
   save(); closeCatMgr(); showToast('✅ Categories saved!', 'success');
 }
 
@@ -1020,6 +1021,7 @@ function saveCatMgr() {
 // ══════════════════════════════════════════════════
 function openPayMgr() {
   tempPays = JSON.parse(JSON.stringify(D.payments));
+  tempPays.sort((a,b) => a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
   renderPayList();
   document.getElementById('pay-modal').classList.add('open');
 }
@@ -1076,7 +1078,7 @@ function addPayMethod() {
 }
 function savePayMgr() {
   if (!tempPays.length) { showToast('Need at least one payment method.', 'error'); return; }
-  D.payments = tempPays;
+  D.payments = tempPays.slice().sort((a,b) => a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
   save(); populatePaymentSelects(); closePayMgr();
   showToast('✅ Payment methods saved!', 'success');
 }
