@@ -260,7 +260,7 @@ table tr:hover td{background:#fdf9f2;}
         <div class="fg"><label>Category</label><select id="ni-cat"></select></div>
       </div>
       <div class="form-grid" style="margin-top:10px;">
-        <div class="fg"><label>Budgeted Amount (&#8377;) *</label><input type="number" id="ni-amt" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>Budgeted Amount (&#8377;) *</label><input type="text" inputmode="decimal" id="ni-amt" placeholder="0.00"></div>
         <div class="fg"><label>Primary Payment Source</label><select id="ni-src" onchange="niSrcChange()"></select></div>
       </div>
       <div id="ni-src-other-wrap" style="display:none;margin-top:8px;">
@@ -270,7 +270,7 @@ table tr:hover td{background:#fdf9f2;}
         <div class="pay-split-lbl">Secondary Payment Source (Optional)</div>
         <div class="form-grid">
           <div class="fg"><label>Secondary Method</label><select id="ni-src2" onchange="niSrc2Change()"><option value="">&#8212; None &#8212;</option></select></div>
-          <div class="fg" id="ni-amt2-wrap" style="display:none;"><label>Amount (&#8377;)</label><input type="number" id="ni-amt2" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="fg" id="ni-amt2-wrap" style="display:none;"><label>Amount (&#8377;)</label><input type="text" inputmode="decimal" id="ni-amt2" placeholder="0.00"></div>
         </div>
         <div id="ni-src2-other-wrap" style="display:none;margin-top:8px;">
           <div class="fg"><label>Specify Secondary</label><input type="text" id="ni-src2-other" placeholder="e.g. PhonePe..."></div>
@@ -352,7 +352,7 @@ table tr:hover td{background:#fdf9f2;}
         <div class="fg"><label>Description</label><input type="text" id="ei-desc"></div>
         <div class="form-grid">
           <div class="fg"><label>Category</label><select id="ei-cat"></select></div>
-          <div class="fg"><label>Budgeted Amount (&#8377;)</label><input type="number" id="ei-amt" min="0" step="0.01"></div>
+          <div class="fg"><label>Budgeted Amount (&#8377;)</label><input type="text" inputmode="decimal" id="ei-amt"></div>
         </div>
         <div class="fg"><label>Primary Payment Source</label><select id="ei-src" onchange="eiSrcChange()"></select></div>
         <div id="ei-src-other-wrap" style="display:none;">
@@ -362,7 +362,7 @@ table tr:hover td{background:#fdf9f2;}
           <div class="pay-split-lbl">Secondary Payment (Optional)</div>
           <div class="form-grid">
             <div class="fg"><label>Secondary Method</label><select id="ei-src2" onchange="eiSrc2Change()"><option value="">&#8212; None &#8212;</option></select></div>
-            <div class="fg" id="ei-amt2-wrap" style="display:none;"><label>Amount (&#8377;)</label><input type="number" id="ei-amt2" min="0" step="0.01"></div>
+            <div class="fg" id="ei-amt2-wrap" style="display:none;"><label>Amount (&#8377;)</label><input type="text" inputmode="decimal" id="ei-amt2"></div>
           </div>
           <div id="ei-src2-other-wrap" style="display:none;margin-top:8px;">
             <div class="fg"><label>Specify Secondary</label><input type="text" id="ei-src2-other" placeholder="e.g. Google Pay..."></div>
@@ -631,22 +631,19 @@ function getCCNamesSet() {
   return new Set(D.ccCards.map(c => c.name));
 }
 
-// getActualsForMonth: only counts expenses NOT paid via credit card.
-// CC-paid expenses are captured via the CC bill budget item when the bill is paid.
-// This prevents April CC charges from appearing as actuals in regular budget categories.
+// Only counts the direct-paid (non-CC) portion of each expense.
+// CC-paid amounts flow through the CC bill line item instead,
+// preventing CC charges from appearing as actuals in regular budget categories.
 function getActualsForMonth(year, month) {
-  const prefix = mk(year, month);
-  const map = {};  // desc.toLowerCase() -> total amount
+  const prefix  = mk(year, month);
+  const map     = {};
   const ccNames = getCCNamesSet();
 
   getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    // Determine how much of this expense was paid directly (not via CC)
     const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
     const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
     const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
     const a1  = e.amount - a2;
-
-    // Only include the portion paid by non-CC methods
     const directAmt = (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
     if (directAmt > 0) {
       const k = e.description.trim().toLowerCase();
@@ -654,7 +651,7 @@ function getActualsForMonth(year, month) {
     }
   });
 
-  // Purchases lumped under 'groceries & purchases' — only non-CC portion
+  // Purchases — only non-CC portion
   let purTotal = 0;
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
     const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
@@ -671,10 +668,9 @@ function getActualsForMonth(year, month) {
   return map;
 }
 
-// Get total actual spend for a month — only direct-paid (non-CC) portion
-// CC-paid amounts are tracked via CC bill payment entries
+// Only direct-paid (non-CC) portion — CC amounts tracked via CC bill payment entries
 function getTotalActualForMonth(year, month) {
-  const prefix = mk(year, month);
+  const prefix  = mk(year, month);
   const ccNames = getCCNamesSet();
   let total = 0;
   getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
@@ -1065,12 +1061,10 @@ function renderBudget() {
     return;
   }
 
-  // Build live CC bill amounts keyed by "CardName Bill" description (lowercase)
-  // For each CC card, find the cycle DUE in curMonth/curYear and get live charges
-  // This auto-updates as expenses are recorded — no need to re-run autoPopulate
+  // Build live CC bill amounts keyed by "CardName Bill" description (lowercase).
+  // For each CC card, find the cycle DUE in curMonth/curYear and get live charges.
   const ccLiveMap = {};
   D.ccCards.forEach(card => {
-    // Work backwards from due month to find cycle-end month
     let ceM = curMonth - card.dueOffset;
     let ceY = curYear;
     if (ceM < 0) { ceM += 12; ceY--; }
@@ -1078,7 +1072,7 @@ function renderBudget() {
     ccLiveMap[(card.name + ' Bill').toLowerCase()] = liveBill.total;
   });
 
-  // Silently sync stored CC bill budget values to live amounts
+  // Silently sync stored CC bill budget values to live amounts on every render
   let ccSynced = false;
   items.forEach(it => {
     if (it.cat === 'Credit Card Bills') {
@@ -1111,28 +1105,9 @@ function renderBudget() {
       const isCCBill = it.cat === 'Credit Card Bills';
       const descKey  = it.desc.trim().toLowerCase();
 
-      // For CC bill items:
-      //   budget = LIVE bill total from CC register (auto-updates as expenses are recorded)
-      //   actual = the CC bill payment recorded in expense register this month (what left the bank)
-      //            i.e. an expense entry like "HDFC Bank Credit Card Bill" paid via Axis Bank/ICICI
-      // For regular items:
-      //   budget = stored budget amount
-      //   actual = matching expense entry paid by non-CC method in this month
-      let bgt, liveAmt;
-      if (isCCBill) {
-        // Always use live CC bill amount as the budget — auto-syncs stored value too
-        liveAmt = ccLiveMap[descKey] || 0;
-        bgt = liveAmt;
-        // Silently sync the stored budget to match the live amount
-        if (it.budget !== bgt) { it.budget = bgt; }
-      } else {
-        bgt = it.budget || 0;
-        liveAmt = 0;
-      }
-
-      // Actual: for CC bill items, look for the bill payment entry (e.g. "HDFC Bank Credit Card Bill")
-      // paid directly from a bank account in this month — that entry will be in actMap only if
-      // it was entered as a direct-bank-paid expense. For regular items, use actMap normally.
+      // CC bill items: budget = live CC bill total (auto-synced above, read-only display)
+      // Regular items: budget = stored amount (editable text input)
+      let bgt = it.budget || 0;
       let act = actMap[descKey] || 0;
 
       const vr  = bgt - act;
@@ -1144,12 +1119,14 @@ function renderBudget() {
         <div>
           <div class="bgt-desc" title="${escQ(it.desc)}">${isCCBill?'&#128179; ':''}${esc(it.desc)}</div>
           ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
-          ${isCCBill?'<div class="bgt-note" style="color:var(--teal);">Auto-updated from CC Bills register</div>':''}
+          ${isCCBill?'<div class="bgt-note" style="color:var(--teal);">&#8635; Auto-updated from CC register</div>':''}
         </div>
         <div class="bgt-src" style="color:${sCol};font-size:10px;">${esc(srcDisplay(it))}</div>
         <div>${isCCBill
           ? `<div style="padding:5px 8px;font-family:'Fraunces',serif;font-size:13px;font-weight:700;color:var(--burgundy);text-align:right;">&#8377;${fmt(bgt,2)}</div>`
-          : `<input class="bgt-inp" type="number" step="0.01" value="${bgt.toFixed(2)}" onchange="updateBgt('${key}','${it.id}',this.value)">`
+          : `<input class="bgt-inp" type="text" inputmode="decimal" value="${bgt.toFixed(2)}"
+              onchange="updateBgt('${key}','${it.id}',this.value)"
+              onblur="this.value=formatBgtInput(this.value)">`
         }</div>
         <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
@@ -1165,9 +1142,14 @@ function renderBudget() {
   document.getElementById('bgt-content').innerHTML = html;
 }
 
+function formatBgtInput(val) {
+  const n = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? '0.00' : n.toFixed(2);
+}
 function updateBgt(key, id, val) {
+  const n  = parseFloat(String(val).replace(/[^0-9.]/g, ''));
   const it = (D.budgets[key]||[]).find(i=>i.id===id);
-  if (it) { it.budget = parseFloat(val)||0; save(); renderBudget(); }
+  if (it) { it.budget = isNaN(n) ? 0 : n; save(); renderBudget(); }
 }
 
 // ══════════════════════════════════════════════════
@@ -1176,11 +1158,11 @@ function updateBgt(key, id, val) {
 function addBgtItem() {
   const desc = document.getElementById('ni-desc').value.trim();
   const cat  = document.getElementById('ni-cat').value;
-  const amt  = parseFloat(document.getElementById('ni-amt').value) || 0;
+  const amt  = parseFloat(String(document.getElementById('ni-amt').value).replace(/[^0-9.]/g,'')) || 0;
   const src  = document.getElementById('ni-src').value;
   const srcO = src==='Other' ? document.getElementById('ni-src-other').value.trim() : '';
   const src2 = document.getElementById('ni-src2').value;
-  const amt2 = src2 ? (parseFloat(document.getElementById('ni-amt2').value)||0) : 0;
+  const amt2 = src2 ? (parseFloat(String(document.getElementById('ni-amt2').value).replace(/[^0-9.]/g,''))||0) : 0;
   const src2O= src2==='Other' ? document.getElementById('ni-src2-other').value.trim() : '';
   if (!desc) { toast('Enter a description.','error'); return; }
   const key = mk(curYear,curMonth);
@@ -1209,9 +1191,9 @@ function autoPopulate() {
   const expenses = getExpenses().filter(e => e.date.startsWith(prevKey));
   const purchases= getPurchases().filter(b => b.date.startsWith(prevKey));
 
-  // Club expenses by description — only include the direct-paid (non-CC) portion
-  // CC-paid expenses will be captured via CC bill budget items below
-  const grouped = {};
+  // Club expenses by description — only the direct-paid (non-CC) portion.
+  // CC-paid items are captured separately via CC bill lines below.
+  const grouped  = {};
   const ccNamesAP = getCCNamesSet();
   expenses.forEach(e => {
     const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
@@ -1219,15 +1201,15 @@ function autoPopulate() {
     const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
     const a1  = e.amount - a2;
     const directAmt = (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
-    if (directAmt <= 0) return; // fully CC-paid, skip — will be covered by CC bill line
+    if (directAmt <= 0) return;
     const k = e.description.trim();
     if (!grouped[k]) grouped[k] = {desc:k, cat:e.category||'Other', amount:0,
       source:pm1||'Other', sourceOther:e.paymentOther||'',
-      source2:pm2||'', amt2:a2>0&&!ccNamesAP.has(pm2)?a2:0, sourceOther2:e.paymentOther2||''};
+      source2:pm2||'', amt2:pm2&&!ccNamesAP.has(pm2)?a2:0, sourceOther2:e.paymentOther2||''};
     grouped[k].amount += directAmt;
   });
 
-  // Purchases as one line — only direct-paid (non-CC) portion
+  // Purchases — only non-CC portion
   let purTot = 0;
   purchases.forEach(b => {
     const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
@@ -1324,13 +1306,13 @@ function openEdit(key, id) {
   document.getElementById('ei-key').value   = key+'|'+id;
   document.getElementById('ei-desc').value  = it.desc;
   fillCatSelect('ei-cat', it.cat);
-  document.getElementById('ei-amt').value   = it.budget||0;
+  document.getElementById('ei-amt').value   = (it.budget||0).toFixed(2);
   fillPaySelect('ei-src',  it.source||'',  false);
   document.getElementById('ei-src-other-wrap').style.display = it.source==='Other'?'block':'none';
   document.getElementById('ei-src-other').value = it.sourceOther||'';
   fillPaySelect('ei-src2', it.source2||'', true);
   document.getElementById('ei-amt2-wrap').style.display = it.source2?'flex':'none';
-  document.getElementById('ei-amt2').value  = it.amt2||0;
+  document.getElementById('ei-amt2').value  = (it.amt2||0).toFixed(2);
   document.getElementById('ei-src2-other-wrap').style.display = it.source2==='Other'?'block':'none';
   document.getElementById('ei-src2-other').value= it.sourceOther2||'';
   document.getElementById('ei-notes').value = it.notes||'';
@@ -1343,11 +1325,11 @@ function saveEditItem() {
   const src2 = document.getElementById('ei-src2').value;
   it.desc        = document.getElementById('ei-desc').value.trim() || it.desc;
   it.cat         = document.getElementById('ei-cat').value;
-  it.budget      = parseFloat(document.getElementById('ei-amt').value)||0;
+  it.budget      = parseFloat(String(document.getElementById('ei-amt').value).replace(/[^0-9.]/g,''))||0;
   it.source      = document.getElementById('ei-src').value;
   it.sourceOther = it.source==='Other' ? document.getElementById('ei-src-other').value.trim() : '';
   it.source2     = src2;
-  it.amt2        = src2 ? (parseFloat(document.getElementById('ei-amt2').value)||0) : 0;
+  it.amt2        = src2 ? (parseFloat(String(document.getElementById('ei-amt2').value).replace(/[^0-9.]/g,''))||0) : 0;
   it.sourceOther2= src2==='Other' ? document.getElementById('ei-src2-other').value.trim() : '';
   it.notes       = document.getElementById('ei-notes').value.trim();
   save(); closeModal('edit-modal'); renderBudget();
