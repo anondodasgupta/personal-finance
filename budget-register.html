@@ -627,19 +627,42 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // ══════════════════════════════════════════════════
 // ACTUALS FROM REGISTERS (for a given budget month)
 // ══════════════════════════════════════════════════
+function getCCNamesSet() {
+  return new Set(D.ccCards.map(c => c.name));
+}
+
+// getActualsForMonth: only counts expenses NOT paid via credit card.
+// CC-paid expenses are captured via the CC bill budget item when the bill is paid.
+// This prevents April CC charges from appearing as actuals in regular budget categories.
 function getActualsForMonth(year, month) {
   const prefix = mk(year, month);
   const map = {};  // desc.toLowerCase() -> total amount
+  const ccNames = getCCNamesSet();
 
   getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    const k = e.description.trim().toLowerCase();
-    map[k] = (map[k]||0) + e.amount;
+    // Determine how much of this expense was paid directly (not via CC)
+    const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+
+    // Only include the portion paid by non-CC methods
+    const directAmt = (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
+    if (directAmt > 0) {
+      const k = e.description.trim().toLowerCase();
+      map[k] = (map[k]||0) + directAmt;
+    }
   });
 
-  // Purchases lumped under 'groceries & purchases'
+  // Purchases lumped under 'groceries & purchases' — only non-CC portion
   let purTotal = 0;
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
-    purTotal += b.items.reduce((s,i)=>s+i.amount,0);
+    const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
+    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    const a1  = tot - a2;
+    purTotal += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
   });
   if (purTotal > 0) {
     const k = 'groceries & purchases';
@@ -648,13 +671,26 @@ function getActualsForMonth(year, month) {
   return map;
 }
 
-// Get total actual spend for a month (sum of ALL expense+purchase entries)
+// Get total actual spend for a month — only direct-paid (non-CC) portion
+// CC-paid amounts are tracked via CC bill payment entries
 function getTotalActualForMonth(year, month) {
   const prefix = mk(year, month);
+  const ccNames = getCCNamesSet();
   let total = 0;
-  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => { total += e.amount; });
+  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
+    const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+    total += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
+  });
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
-    total += b.items.reduce((s,i)=>s+i.amount,0);
+    const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
+    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    const a1  = tot - a2;
+    total += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
   });
   return total;
 }
@@ -1042,6 +1078,16 @@ function renderBudget() {
     ccLiveMap[(card.name + ' Bill').toLowerCase()] = liveBill.total;
   });
 
+  // Silently sync stored CC bill budget values to live amounts
+  let ccSynced = false;
+  items.forEach(it => {
+    if (it.cat === 'Credit Card Bills') {
+      const liveAmt = ccLiveMap[it.desc.trim().toLowerCase()] || 0;
+      if (it.budget !== liveAmt) { it.budget = liveAmt; ccSynced = true; }
+    }
+  });
+  if (ccSynced) save();
+
   // Group ALL items by category for display (show everything)
   const byCat = {};
   items.forEach(it => { if (!byCat[it.cat]) byCat[it.cat]=[]; byCat[it.cat].push(it); });
@@ -1066,28 +1112,45 @@ function renderBudget() {
       const descKey  = it.desc.trim().toLowerCase();
 
       // For CC bill items:
+      //   budget = LIVE bill total from CC register (auto-updates as expenses are recorded)
       //   actual = the CC bill payment recorded in expense register this month (what left the bank)
-      //   The live CC charges are shown in the Outflow Summary under Credit Cards group
-      // For regular items: actual = matching expense entry description in this month
-      let bgt = it.budget || 0;
+      //            i.e. an expense entry like "HDFC Bank Credit Card Bill" paid via Axis Bank/ICICI
+      // For regular items:
+      //   budget = stored budget amount
+      //   actual = matching expense entry paid by non-CC method in this month
+      let bgt, liveAmt;
+      if (isCCBill) {
+        // Always use live CC bill amount as the budget — auto-syncs stored value too
+        liveAmt = ccLiveMap[descKey] || 0;
+        bgt = liveAmt;
+        // Silently sync the stored budget to match the live amount
+        if (it.budget !== bgt) { it.budget = bgt; }
+      } else {
+        bgt = it.budget || 0;
+        liveAmt = 0;
+      }
+
+      // Actual: for CC bill items, look for the bill payment entry (e.g. "HDFC Bank Credit Card Bill")
+      // paid directly from a bank account in this month — that entry will be in actMap only if
+      // it was entered as a direct-bank-paid expense. For regular items, use actMap normally.
       let act = actMap[descKey] || 0;
 
       const vr  = bgt - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
       const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),2);
       const sCol= SRC_COLOR[it.source] || '#6b7280';
-      // For CC bill budget input: also show live CC charges as a sub-note
-      const liveAmt = isCCBill ? (ccLiveMap[descKey] || 0) : 0;
 
       html += `<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>
           <div class="bgt-desc" title="${escQ(it.desc)}">${isCCBill?'&#128179; ':''}${esc(it.desc)}</div>
           ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
-          ${isCCBill && liveAmt>0?'<div class="bgt-note" style="color:var(--teal);">Live charges: &#8377;'+fmt(liveAmt,2)+'</div>':''}
+          ${isCCBill?'<div class="bgt-note" style="color:var(--teal);">Auto-updated from CC Bills register</div>':''}
         </div>
         <div class="bgt-src" style="color:${sCol};font-size:10px;">${esc(srcDisplay(it))}</div>
-        <div><input class="bgt-inp" type="number" step="0.01" value="${bgt.toFixed(2)}"
-          onchange="updateBgt('${key}','${it.id}',this.value)"></div>
+        <div>${isCCBill
+          ? `<div style="padding:5px 8px;font-family:'Fraunces',serif;font-size:13px;font-weight:700;color:var(--burgundy);text-align:right;">&#8377;${fmt(bgt,2)}</div>`
+          : `<input class="bgt-inp" type="number" step="0.01" value="${bgt.toFixed(2)}" onchange="updateBgt('${key}','${it.id}',this.value)">`
+        }</div>
         <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
@@ -1146,18 +1209,34 @@ function autoPopulate() {
   const expenses = getExpenses().filter(e => e.date.startsWith(prevKey));
   const purchases= getPurchases().filter(b => b.date.startsWith(prevKey));
 
-  // Club expenses by description
+  // Club expenses by description — only include the direct-paid (non-CC) portion
+  // CC-paid expenses will be captured via CC bill budget items below
   const grouped = {};
+  const ccNamesAP = getCCNamesSet();
   expenses.forEach(e => {
+    const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+    const directAmt = (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
+    if (directAmt <= 0) return; // fully CC-paid, skip — will be covered by CC bill line
     const k = e.description.trim();
     if (!grouped[k]) grouped[k] = {desc:k, cat:e.category||'Other', amount:0,
-      source:e.paymentMethod||'Other', sourceOther:e.paymentOther||'',
-      source2:e.paymentMethod2||'', amt2:e.paymentAmt2||0, sourceOther2:e.paymentOther2||''};
-    grouped[k].amount += e.amount;
+      source:pm1||'Other', sourceOther:e.paymentOther||'',
+      source2:pm2||'', amt2:a2>0&&!ccNamesAP.has(pm2)?a2:0, sourceOther2:e.paymentOther2||''};
+    grouped[k].amount += directAmt;
   });
 
-  // Purchases as one line
-  const purTot = purchases.reduce((s,b)=>s+b.items.reduce((si,i)=>si+i.amount,0),0);
+  // Purchases as one line — only direct-paid (non-CC) portion
+  let purTot = 0;
+  purchases.forEach(b => {
+    const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
+    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    const a1  = tot - a2;
+    purTot += (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
+  });
   if (purTot > 0) {
     const pm = purchases[0]?.paymentMethod || 'Other';
     grouped['Groceries & Purchases'] = {desc:'Groceries & Purchases',cat:'Groceries & Purchases',
