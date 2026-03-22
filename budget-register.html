@@ -640,15 +640,14 @@ function getActualsForMonth(year, month) {
   const ccNames = getCCNamesSet();
 
   getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    const pm1  = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
-    const pm2  = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
-    const eAmt = parseFloat(e.amount) || 0;
-    const a2   = pm2 ? (parseFloat(e.paymentAmt2) || 0) : 0;
-    const a1   = eAmt - a2;
+    const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
     const directAmt = (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
     if (directAmt > 0) {
       const k = e.description.trim().toLowerCase();
-      map[k] = (map[k] || 0) + directAmt;
+      map[k] = (map[k]||0) + directAmt;
     }
   });
 
@@ -657,8 +656,8 @@ function getActualsForMonth(year, month) {
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
     const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
     const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
-    const tot = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
-    const a2  = pm2 ? (parseFloat(b.paymentAmt2) || 0) : 0;
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
     const a1  = tot - a2;
     purTotal += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
   });
@@ -675,18 +674,17 @@ function getTotalActualForMonth(year, month) {
   const ccNames = getCCNamesSet();
   let total = 0;
   getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    const pm1  = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
-    const pm2  = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
-    const eAmt = parseFloat(e.amount) || 0;
-    const a2   = pm2 ? (parseFloat(e.paymentAmt2) || 0) : 0;
-    const a1   = eAmt - a2;
+    const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
     total += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
   });
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
     const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
     const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
-    const tot = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
-    const a2  = pm2 ? (parseFloat(b.paymentAmt2) || 0) : 0;
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
     const a1  = tot - a2;
     total += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
   });
@@ -706,11 +704,11 @@ function getBankOutflowsForMonth(year, month, ccNames) {
   }
 
   getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    const pm1  = (e.paymentMethod==='Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod||'');
-    const pm2  = e.paymentMethod2 ? ((e.paymentMethod2==='Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
-    const eAmt = parseFloat(e.amount) || 0;
-    const a2   = pm2 ? (parseFloat(e.paymentAmt2) || 0) : 0;
-    const a1   = eAmt - a2;
+    const pm1 = (e.paymentMethod==='Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod||'');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2==='Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+    // Credit card charges: skip pm1/pm2 that are CC names (they'll be counted via CC bill payment)
     if (!ccNames.has(pm1)) addActual(pm1, a1);
     if (pm2 && !ccNames.has(pm2)) addActual(pm2, a2);
   });
@@ -718,8 +716,8 @@ function getBankOutflowsForMonth(year, month, ccNames) {
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
     const pm1 = (b.paymentMethod==='Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod||'');
     const pm2 = b.paymentMethod2 ? ((b.paymentMethod2==='Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
-    const tot = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
-    const a2  = pm2 ? (parseFloat(b.paymentAmt2) || 0) : 0;
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
     const a1  = tot - a2;
     if (!ccNames.has(pm1)) addActual(pm1, a1);
     if (pm2 && !ccNames.has(pm2)) addActual(pm2, a2);
@@ -762,10 +760,8 @@ function getCCBill(card, dispYear, dispMonth) {
     if (n < startNum || n > endNum) return;
     const pm=e.paymentMethod||'', pm2=e.paymentMethod2||'';
     if (pm!==card_ && pm2!==card_) return;
-    const eAmt = parseFloat(e.amount) || 0;
-    const pAmt2 = parseFloat(e.paymentAmt2) || 0;
-    const a2  = (pm2===card_ && pAmt2) ? pAmt2 : 0;
-    const a1  = pm===card_ ? (pm2 ? eAmt - pAmt2 : eAmt) : 0;
+    const a2  = (pm2===card_ && e.paymentAmt2)  ? e.paymentAmt2  : 0;
+    const a1  = pm===card_ ? (pm2 ? e.amount-(e.paymentAmt2||0) : e.amount) : 0;
     const amt = a1 + a2;
     if (amt > 0) { total += amt; txns.push({date:e.date, desc:e.description, type:'Expense', amount:amt}); }
   });
@@ -776,10 +772,9 @@ function getCCBill(card, dispYear, dispMonth) {
     if (n < startNum || n > endNum) return;
     const pm=b.paymentMethod||'', pm2=b.paymentMethod2||'';
     if (pm!==card_ && pm2!==card_) return;
-    const bt   = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
-    const pAmt2 = parseFloat(b.paymentAmt2) || 0;
-    const a2  = (pm2===card_ && pAmt2) ? pAmt2 : 0;
-    const a1  = pm===card_ ? (pm2 ? bt - pAmt2 : bt) : 0;
+    const bt  = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2===card_ && b.paymentAmt2)  ? b.paymentAmt2  : 0;
+    const a1  = pm===card_ ? (pm2 ? bt-(b.paymentAmt2||0) : bt) : 0;
     const amt = a1 + a2;
     if (amt > 0) { total += amt; txns.push({date:b.date, desc:'Purchases — '+b.shop, type:'Purchase', amount:amt}); }
   });
@@ -1196,39 +1191,34 @@ function autoPopulate() {
   const expenses = getExpenses().filter(e => e.date.startsWith(prevKey));
   const purchases= getPurchases().filter(b => b.date.startsWith(prevKey));
 
-  // Club expenses by description — only the direct-paid (non-CC) portion.
-  // CC-paid items are captured separately via CC bill lines below.
+  // Club ALL expenses by description with their full amounts.
+  // Every expense head from last month should appear in the budget regardless of payment method.
+  // CC bill lines are added separately below — the budget is for planning, actuals handle the separation.
   const grouped  = {};
-  const ccNamesAP = getCCNamesSet();
   expenses.forEach(e => {
+    const eAmt = parseFloat(e.amount) || 0;
+    if (!eAmt) return;
     const pm1  = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
     const pm2  = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
-    const eAmt = parseFloat(e.amount) || 0;
     const a2   = pm2 ? (parseFloat(e.paymentAmt2) || 0) : 0;
-    const a1   = eAmt - a2;
-    const directAmt = (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
-    if (directAmt <= 0) return;
-    const k = e.description.trim();
+    const k    = e.description.trim();
     if (!grouped[k]) grouped[k] = {desc:k, cat:e.category||'Other', amount:0,
       source:pm1||'Other', sourceOther:e.paymentOther||'',
-      source2:pm2||'', amt2:pm2&&!ccNamesAP.has(pm2)?a2:0, sourceOther2:e.paymentOther2||''};
-    grouped[k].amount += directAmt;
+      source2:pm2||'', amt2:a2, sourceOther2:e.paymentOther2||''};
+    grouped[k].amount += eAmt;
   });
 
-  // Purchases — only non-CC portion
+  // Purchases — full amount regardless of payment method
   let purTot = 0;
   purchases.forEach(b => {
-    const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
-    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
-    const tot = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
-    const a2  = pm2 ? (parseFloat(b.paymentAmt2) || 0) : 0;
-    const a1  = tot - a2;
-    purTot += (!ccNamesAP.has(pm1) ? a1 : 0) + (pm2 && !ccNamesAP.has(pm2) ? a2 : 0);
+    purTot += b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
   });
   if (purTot > 0) {
-    const pm = purchases[0]?.paymentMethod || 'Other';
-    grouped['Groceries & Purchases'] = {desc:'Groceries & Purchases',cat:'Groceries & Purchases',
-      amount:purTot, source:pm, sourceOther:'', source2:'', amt2:0, sourceOther2:''};
+    const pm  = purchases[0]?.paymentMethod || 'Other';
+    const pm2 = purchases[0]?.paymentMethod2 || '';
+    const a2  = pm2 ? (parseFloat(purchases[0]?.paymentAmt2) || 0) : 0;
+    grouped['Groceries & Purchases'] = {desc:'Groceries & Purchases', cat:'Groceries & Purchases',
+      amount:purTot, source:pm, sourceOther:'', source2:pm2, amt2:a2, sourceOther2:''};
   }
 
   let added = 0;
