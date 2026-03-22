@@ -1029,6 +1029,19 @@ function renderBudget() {
     return;
   }
 
+  // Build live CC bill amounts keyed by "CardName Bill" description (lowercase)
+  // For each CC card, find the cycle DUE in curMonth/curYear and get live charges
+  // This auto-updates as expenses are recorded — no need to re-run autoPopulate
+  const ccLiveMap = {};
+  D.ccCards.forEach(card => {
+    // Work backwards from due month to find cycle-end month
+    let ceM = curMonth - card.dueOffset;
+    let ceY = curYear;
+    if (ceM < 0) { ceM += 12; ceY--; }
+    const liveBill = getCCBill(card, ceY, ceM);
+    ccLiveMap[(card.name + ' Bill').toLowerCase()] = liveBill.total;
+  });
+
   // Group ALL items by category for display (show everything)
   const byCat = {};
   items.forEach(it => { if (!byCat[it.cat]) byCat[it.cat]=[]; byCat[it.cat].push(it); });
@@ -1037,8 +1050,12 @@ function renderBudget() {
   Object.keys(byCat).sort().forEach(cat => {
     const catItems = byCat[cat];
     const catBgt   = catItems.reduce((s,i)=>s+(i.budget||0),0);
-    // Actual from registers for all categories (CC bills show 0 if not yet paid)
-    const catAct = catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
+    // Actual: for CC bill items use live charges; for others use actMap
+    const catAct = catItems.reduce((s,i)=>{
+      const dk = i.desc.trim().toLowerCase();
+      if (i.cat==='Credit Card Bills' && ccLiveMap.hasOwnProperty(dk)) return s + ccLiveMap[dk];
+      return s + (actMap[dk]||0);
+    },0);
 
     html += `<div class="budget-table-wrap">
       <div class="bgt-header">
@@ -1685,18 +1702,23 @@ function importData(e) {
   const file=e.target.files[0]; if(!file) return;
   const r=new FileReader();
   r.onload=ev=>{
+    let obj;
+    try { obj=JSON.parse(ev.target.result); } catch(err) {
+      toast('File is not valid JSON. Please export a fresh backup and try again.','error');
+      e.target.value=''; return;
+    }
     try {
-      const obj=JSON.parse(ev.target.result);
+      let imported=0;
       if (obj.budgets && typeof obj.budgets==='object')
         Object.keys(obj.budgets).forEach(k=>{
           if(!D.budgets[k]) D.budgets[k]=[];
-          (obj.budgets[k]||[]).forEach(it=>{ if(!D.budgets[k].find(x=>x.id===it.id)) D.budgets[k].push(it); });
+          (obj.budgets[k]||[]).forEach(it=>{ if(it && it.id && !D.budgets[k].find(x=>x.id===it.id)){ D.budgets[k].push(it); imported++; } });
         });
       if (Array.isArray(obj.ccCards)    && obj.ccCards.length)    D.ccCards    = obj.ccCards;
       if (Array.isArray(obj.categories) && obj.categories.length) D.categories = obj.categories;
       if (Array.isArray(obj.payments)   && obj.payments.length)   D.payments   = obj.payments;
-      save(); renderBudget(); toast('Imported successfully!','success');
-    } catch(err){ toast('Invalid file.','error'); }
+      save(); renderBudget(); toast('Imported successfully! ('+imported+' budget items)','success');
+    } catch(err){ toast('Import partially failed: '+err.message,'error'); }
     e.target.value='';
   };
   r.readAsText(file);
