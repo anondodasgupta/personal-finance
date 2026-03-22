@@ -241,7 +241,6 @@ table tr:hover td{background:#fdf9f2;}
       <div class="month-nav-title" id="bgt-month-title">&#8212;</div>
       <button class="mn-btn" onclick="changeMonth(1)">&#8250;</button>
     </div>
-    <div class="summary-strip" id="bgt-summary"></div>
     <div class="source-summary" id="bgt-source-summary" style="display:none;"></div>
     <div class="auto-banner">
       <div>
@@ -868,118 +867,143 @@ function renderBudget() {
   const ccBillItems  = items.filter(it => it.cat === 'Credit Card Bills');
   const expenseItems = items.filter(it => it.cat !== 'Credit Card Bills');
 
-  // KPI totals: use expense items only (CC bills duplicate underlying expenses)
-  let totBgt = 0;
-  expenseItems.forEach(it => { totBgt += (it.budget||0); });
-  // Add CC bill budgets separately (these represent bank outflows for CC payments)
-  let totCCBgt = ccBillItems.reduce((s,i)=>s+(i.budget||0), 0);
-  const grandBgt = totBgt + totCCBgt;  // total of everything
+  // ── OUTFLOW SUMMARY ─────────────────────────────────────────────────────
+  // Three groups: Credit Cards, Bank/UPI/Debit, Other
+  // Credit Cards: budget = CC bill budget items (one per card); actual = live charges from registers
+  // Bank / Other: budget = budget items paid directly by bank/cash; actual = direct register payments
 
-  // Actual spend = ALL expenses + purchases from registers for this month
-  const totAct = getTotalActualForMonth(curYear, curMonth);
-  const variance = grandBgt - totAct;  // variance against total budgeted
-
-  // Summary pills
-  document.getElementById('bgt-summary').innerHTML = `
-    <div class="sum-pill">
-      <div class="sum-pill-lbl">Total Budgeted</div>
-      <div class="sum-pill-val">&#8377;${fmt(grandBgt,0)}</div>
-      <div class="sum-pill-sub">incl. CC bills</div>
-    </div>
-    <div class="sum-pill">
-      <div class="sum-pill-lbl">Expense Budget</div>
-      <div class="sum-pill-val">&#8377;${fmt(totBgt,0)}</div>
-      <div class="sum-pill-sub">${expenseItems.length} items (excl. CC)</div>
-    </div>
-    <div class="sum-pill ${totAct>grandBgt?'red':'green'}">
-      <div class="sum-pill-lbl">Actual Spend</div>
-      <div class="sum-pill-val">&#8377;${fmt(totAct,0)}</div>
-      <div class="sum-pill-sub">live from registers</div>
-    </div>
-    <div class="sum-pill ${variance>=0?'green':'red'}">
-      <div class="sum-pill-lbl">Variance</div>
-      <div class="sum-pill-val">${variance>=0?'+':''}&#8377;${fmt(Math.abs(variance),0)}</div>
-      <div class="sum-pill-sub">${variance>=0?'Under budget':'Over budget'}</div>
-    </div>`;
-
-  // Payment Source Summary — pulled directly from registers (actual bank outflows)
-  // Budget figures from budget items per source group
   const CC_NAMES = new Set(D.ccCards.map(c => c.name));
+
   if (items.length) {
-    // Build budget by source from budget items
-    const bgtSrcMap = {};
+    // ── 1. Credit Cards group ──
+    // Budget = CC bill items in budget for THIS month (bills DUE this month, paid from any source)
+    // Actual = live charges from expense+purchase registers for each card's cycle ending this month
+    const ccBudgetMap = {}; // cardName -> budgeted bill amount
+    ccBillItems.forEach(it => {
+      // item desc is "CardName Bill" — strip " Bill" to get card name
+      const cardName = it.desc.replace(/ Bill$/i, '').trim();
+      ccBudgetMap[cardName] = (ccBudgetMap[cardName]||0) + (it.budget||0);
+    });
+
+    // Actual charges: for each CC card, find its cycle that is DUE in curMonth
+    const ccActualMap = {}; // cardName -> actual charges
+    D.ccCards.forEach(card => {
+      // Work backwards from due month to cycle-end month
+      let ceM = curMonth - card.dueOffset;
+      let ceY = curYear;
+      if (ceM < 0) { ceM += 12; ceY--; }
+      const bill = getCCBill(card, ceY, ceM);
+      ccActualMap[card.name] = bill.total;
+    });
+
+    // Also pick up any CC cards that appear in budget but aren't in D.ccCards config
+    // (handled by ccBudgetMap already — they just won't have an actual)
+
+    // ── 2. Bank / UPI / Other groups ──
+    // Budget = budget items whose PRIMARY or SECONDARY source is a bank/cash (not CC)
+    // Actual = direct payments from registers (non-CC payment methods)
+    const directBudgetMap = {}; // sourceName -> budgeted amount
     items.forEach(it => {
       const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
       const s2 = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
       const a2 = (it.source2 && it.amt2) ? it.amt2 : 0;
       const b  = it.budget || 0;
       const isCCItem = it.cat === 'Credit Card Bills';
-      // For CC bill items: source is a bank account - count directly
-      // For non-CC items paid by CC: don't count in bank outflow budget (it'll appear via CC bill)
-      // For non-CC items paid by bank/cash directly: count
+      // CC bill items: their source is a bank account (that pays the CC bill) — count under bank
+      // Non-CC items paid directly by bank/cash: count
+      // Non-CC items paid by CC card: skip (already counted via CC actual above)
       if (isCCItem || !CC_NAMES.has(s1)) {
-        if (!bgtSrcMap[s1]) bgtSrcMap[s1] = {budget:0,actual:0,group:''};
-        bgtSrcMap[s1].budget += (s2 ? b - a2 : b);
+        if (!directBudgetMap[s1]) directBudgetMap[s1] = 0;
+        directBudgetMap[s1] += (s2 ? b - a2 : b);
       }
       if (s2 && (isCCItem || !CC_NAMES.has(s2))) {
-        if (!bgtSrcMap[s2]) bgtSrcMap[s2] = {budget:0,actual:0,group:''};
-        bgtSrcMap[s2].budget += a2;
+        if (!directBudgetMap[s2]) directBudgetMap[s2] = 0;
+        directBudgetMap[s2] += a2;
       }
     });
 
-    // Get actuals from registers directly
-    const actSrcMap = getBankOutflowsForMonth(curYear, curMonth, CC_NAMES);
+    // Direct actuals from registers (non-CC payment methods only)
+    const directActualMap = getBankOutflowsForMonth(curYear, curMonth, CC_NAMES);
 
-    // Merge
-    const allSrcs = new Set([...Object.keys(bgtSrcMap), ...Object.keys(actSrcMap)]);
-    const mergedSrc = {};
-    allSrcs.forEach(src => {
-      mergedSrc[src] = {
-        budget: (bgtSrcMap[src]||{}).budget || 0,
-        actual: (actSrcMap[src]||{}).actual || 0
-      };
-    });
-
-    // Group by payment group
-    const getGroup = (src) => {
+    // ── 3. Helper: get payment group ──
+    const getGrp = src => {
       const p = D.payments.find(p => p.name === src);
       return p ? p.group : 'Other';
     };
 
-    // Build grouped display
-    const groupOrder = ['Credit Cards','Bank / UPI / Debit','Other'];
-    const grouped = {};
-    Object.entries(mergedSrc).forEach(([src, v]) => {
-      const g = getGroup(src);
-      if (!grouped[g]) grouped[g] = {};
-      grouped[g][src] = v;
+    // ── 4. Build grouped structure ──
+    // Credit Cards group — keyed by card name
+    const ccGroup = {};
+    const allCCNames = new Set([...Object.keys(ccBudgetMap), ...D.ccCards.map(c=>c.name)]);
+    allCCNames.forEach(name => {
+      const bgt = ccBudgetMap[name] || 0;
+      const act = ccActualMap[name] || 0;
+      if (bgt > 0 || act > 0) ccGroup[name] = {budget: bgt, actual: act};
     });
 
+    // Bank/Other groups — keyed by source name
+    const directGroup = {};
+    const allDirectSrcs = new Set([...Object.keys(directBudgetMap), ...Object.keys(directActualMap)]);
+    allDirectSrcs.forEach(src => {
+      const bgt = directBudgetMap[src] || 0;
+      const act = (directActualMap[src]||{}).actual || 0;
+      if (bgt > 0 || act > 0) directGroup[src] = {budget: bgt, actual: act};
+    });
+
+    // ── 5. Render ──
     const srcEl = document.getElementById('bgt-source-summary');
     srcEl.style.display = 'block';
+
+    // Column header row
     let srcHtml = `<div class="source-summary-title">
-      <span>&#128179; Bank Outflow Summary</span>
+      <span>&#128179; Outflow Summary</span>
       <span style="font-size:11px;color:var(--muted);">Budget vs Actual by Source</span>
     </div>
-    <div style="font-size:10px;color:var(--muted);padding:4px 2px 8px;font-style:italic;">
-      CC charges flow through CC bills — shown under the bank account that pays the CC bill.
+    <div class="source-row hdr-row">
+      <div>Source</div>
+      <div style="text-align:right;">Budget (&#8377;)</div>
+      <div style="text-align:right;">Actual (&#8377;)</div>
+      <div style="text-align:right;">Variance</div>
     </div>`;
 
-    groupOrder.forEach(grp => {
-      if (!grouped[grp] || !Object.keys(grouped[grp]).length) return;
-      const grpItems = grouped[grp];
-      const grpBgt = Object.values(grpItems).reduce((s,v)=>s+v.budget,0);
-      const grpAct = Object.values(grpItems).reduce((s,v)=>s+v.actual,0);
+    // ── Credit Cards group ──
+    if (Object.keys(ccGroup).length) {
+      const grpBgt = Object.values(ccGroup).reduce((s,v)=>s+v.budget,0);
+      const grpAct = Object.values(ccGroup).reduce((s,v)=>s+v.actual,0);
       const grpVr  = grpBgt - grpAct;
-      srcHtml += `
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px;padding:0 2px;">
-        ${esc(grp)}
-        <span style="float:right;font-family:'Fraunces',serif;font-size:12px;color:var(--burgundy);letter-spacing:0;text-transform:none;">
-          Bgt: &#8377;${fmt(grpBgt,0)} &nbsp;|&nbsp; Act: &#8377;${fmt(grpAct,0)} &nbsp;|&nbsp;
-          <span style="color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'+':''}&#8377;${fmt(Math.abs(grpVr),0)}</span>
-        </span>
+      srcHtml += `<div class="source-row" style="background:#f5f0e8;font-weight:700;font-size:11px;">
+        <div style="color:var(--burgundy);">&#128179; CREDIT CARDS</div>
+        <div style="text-align:right;font-family:'Fraunces',serif;color:var(--burgundy);">&#8377;${fmt(grpBgt,0)}</div>
+        <div style="text-align:right;color:${grpAct>grpBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(grpAct,0)}</div>
+        <div style="text-align:right;color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(grpVr),0)}</div>
       </div>`;
-      Object.entries(grpItems).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([src, v]) => {
+      Object.entries(ccGroup).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name, v]) => {
+        const vr  = v.budget - v.actual;
+        const col = SRC_COLOR[name] || '#6b7280';
+        srcHtml += `<div class="source-row">
+          <div class="source-name" style="color:${col};">&nbsp;&nbsp;${esc(name)}</div>
+          <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
+          <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
+          <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
+        </div>`;
+      });
+    }
+
+    // ── Bank / UPI and Other groups ──
+    ['Bank / UPI / Debit','Other'].forEach(grp => {
+      const grpSrcs = Object.entries(directGroup).filter(([src]) => getGrp(src) === grp);
+      if (!grpSrcs.length) return;
+      const grpBgt = grpSrcs.reduce((s,[,v])=>s+v.budget,0);
+      const grpAct = grpSrcs.reduce((s,[,v])=>s+v.actual,0);
+      const grpVr  = grpBgt - grpAct;
+      const grpLabel = grp === 'Bank / UPI / Debit' ? 'BANK / UPI / DEBIT' : 'OTHER';
+      srcHtml += `<div class="source-row" style="background:#f5f0e8;font-weight:700;font-size:11px;margin-top:4px;">
+        <div style="color:var(--burgundy);">&#127968; ${grpLabel}</div>
+        <div style="text-align:right;font-family:'Fraunces',serif;color:var(--burgundy);">&#8377;${fmt(grpBgt,0)}</div>
+        <div style="text-align:right;color:${grpAct>grpBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(grpAct,0)}</div>
+        <div style="text-align:right;color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(grpVr),0)}</div>
+      </div>`;
+      grpSrcs.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([src, v]) => {
         const vr  = v.budget - v.actual;
         const col = SRC_COLOR[src] || '#6b7280';
         srcHtml += `<div class="source-row">
@@ -990,6 +1014,7 @@ function renderBudget() {
         </div>`;
       });
     });
+
     srcEl.innerHTML = srcHtml;
   } else {
     document.getElementById('bgt-source-summary').style.display = 'none';
