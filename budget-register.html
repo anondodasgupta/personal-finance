@@ -1050,12 +1050,7 @@ function renderBudget() {
   Object.keys(byCat).sort().forEach(cat => {
     const catItems = byCat[cat];
     const catBgt   = catItems.reduce((s,i)=>s+(i.budget||0),0);
-    // Actual: for CC bill items use live charges; for others use actMap
-    const catAct = catItems.reduce((s,i)=>{
-      const dk = i.desc.trim().toLowerCase();
-      if (i.cat==='Credit Card Bills' && ccLiveMap.hasOwnProperty(dk)) return s + ccLiveMap[dk];
-      return s + (actMap[dk]||0);
-    },0);
+    const catAct   = catItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
 
     html += `<div class="budget-table-wrap">
       <div class="bgt-header">
@@ -1070,32 +1065,29 @@ function renderBudget() {
       const isCCBill = it.cat === 'Credit Card Bills';
       const descKey  = it.desc.trim().toLowerCase();
 
-      // For CC bill items: actual = live charges from CC register (auto-updates as expenses recorded)
-      // Budget = live CC charge total too (so budget always reflects current cycle spend)
-      // For regular items: actual = matching expense entry in this month
-      let bgt, act;
-      if (isCCBill && ccLiveMap.hasOwnProperty(descKey)) {
-        act = ccLiveMap[descKey];   // live CC charges for this card's cycle due this month
-        bgt = it.budget || 0;      // user-editable planned budget for this card
-      } else {
-        act = actMap[descKey] || 0;
-        bgt = it.budget || 0;
-      }
+      // For CC bill items:
+      //   actual = the CC bill payment recorded in expense register this month (what left the bank)
+      //   The live CC charges are shown in the Outflow Summary under Credit Cards group
+      // For regular items: actual = matching expense entry description in this month
+      let bgt = it.budget || 0;
+      let act = actMap[descKey] || 0;
 
       const vr  = bgt - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
       const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),2);
       const sCol= SRC_COLOR[it.source] || '#6b7280';
+      // For CC bill budget input: also show live CC charges as a sub-note
+      const liveAmt = isCCBill ? (ccLiveMap[descKey] || 0) : 0;
 
       html += `<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>
           <div class="bgt-desc" title="${escQ(it.desc)}">${isCCBill?'&#128179; ':''}${esc(it.desc)}</div>
           ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
-          ${isCCBill?'<div class="bgt-note" style="color:var(--teal);">Live from CC register</div>':''}
+          ${isCCBill && liveAmt>0?'<div class="bgt-note" style="color:var(--teal);">Live charges: &#8377;'+fmt(liveAmt,2)+'</div>':''}
         </div>
         <div class="bgt-src" style="color:${sCol};font-size:10px;">${esc(srcDisplay(it))}</div>
-        <div><input class="bgt-inp" type="number" value="${fmt(bgt,2)}"
-          onchange="updateBgt('${key}','${it.id}',this.value)" ${isCCBill?'style="background:#f0f9ff;"':''}></div>
+        <div><input class="bgt-inp" type="number" step="0.01" value="${bgt.toFixed(2)}"
+          onchange="updateBgt('${key}','${it.id}',this.value)"></div>
         <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
