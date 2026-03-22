@@ -631,42 +631,42 @@ function getCCNamesSet() {
   return new Set(D.ccCards.map(c => c.name));
 }
 
-// Returns {cardName -> totalCharged} for all CC cards in a given calendar month.
-// Used by Outflow Summary to show CC spending per card.
-function getCCChargesForMonth(year, month) {
-  const prefix  = mk(year, month);
-  const charges = {};
-  D.ccCards.forEach(card => { charges[card.name] = 0; });
-
-  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    const eAmt  = parseFloat(e.amount)      || 0;
-    const pAmt2 = parseFloat(e.paymentAmt2) || 0;
-    const pm1   = e.paymentMethod  || '';
-    const pm2   = e.paymentMethod2 || '';
-    if (charges[pm1] !== undefined) {
-      const a1 = pm2 ? eAmt - pAmt2 : eAmt;
-      charges[pm1] += a1;
-    }
-    if (pm2 && charges[pm2] !== undefined) {
-      charges[pm2] += pAmt2;
-    }
+// Builds {sourceName -> {desc -> {prev, cur}}} across all payment sources for two months.
+// Covers both CC cards and bank/cash sources so the Outflow Summary can show full line-item detail.
+function getOutflowDetailBySource(prevYear, prevMonth, curYear, curMonth) {
+  const detail = {};
+  function add(src, desc, period, amt) {
+    if (!src || !amt) return;
+    if (!detail[src]) detail[src] = {};
+    const k = desc.trim();
+    if (!detail[src][k]) detail[src][k] = {prev:0, cur:0};
+    detail[src][k][period] += amt;
+  }
+  const prevPfx = mk(prevYear, prevMonth);
+  const curPfx  = mk(curYear,  curMonth);
+  [{pfx:prevPfx, period:'prev'},{pfx:curPfx, period:'cur'}].forEach(({pfx, period}) => {
+    getExpenses().filter(e => e.date.startsWith(pfx)).forEach(e => {
+      const eAmt  = parseFloat(e.amount)      || 0;
+      const pAmt2 = parseFloat(e.paymentAmt2) || 0;
+      const pm1   = (e.paymentMethod  === 'Other' && e.paymentOther)  ? e.paymentOther  : (e.paymentMethod  || '');
+      const pm2   = (e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : (e.paymentMethod2 || '');
+      const a2    = pm2 ? pAmt2 : 0;
+      const a1    = eAmt - a2;
+      if (pm1 && a1) add(pm1, e.description, period, a1);
+      if (pm2 && a2) add(pm2, e.description, period, a2);
+    });
+    getPurchases().filter(b => b.date.startsWith(pfx)).forEach(b => {
+      const tot   = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
+      const pAmt2 = parseFloat(b.paymentAmt2) || 0;
+      const pm1   = (b.paymentMethod  === 'Other' && b.paymentOther)  ? b.paymentOther  : (b.paymentMethod  || '');
+      const pm2   = (b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : (b.paymentMethod2 || '');
+      const a2    = pm2 ? pAmt2 : 0;
+      const a1    = tot - a2;
+      if (pm1 && a1) add(pm1, b.shop || 'Purchases', period, a1);
+      if (pm2 && a2) add(pm2, b.shop || 'Purchases', period, a2);
+    });
   });
-
-  getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
-    const tot   = b.items.reduce((s,i) => s + (parseFloat(i.amount) || 0), 0);
-    const pAmt2 = parseFloat(b.paymentAmt2) || 0;
-    const pm1   = b.paymentMethod  || '';
-    const pm2   = b.paymentMethod2 || '';
-    if (charges[pm1] !== undefined) {
-      const a1 = pm2 ? tot - pAmt2 : tot;
-      charges[pm1] += a1;
-    }
-    if (pm2 && charges[pm2] !== undefined) {
-      charges[pm2] += pAmt2;
-    }
-  });
-
-  return charges;
+  return detail;
 }
 
 // Only counts the direct-paid (non-CC) portion of each expense.
@@ -945,76 +945,87 @@ function renderBudget() {
   const CC_NAMES = new Set(D.ccCards.map(c => c.name));
 
   if (items.length) {
-    // ── 1. Credit Cards group ──
-    // Budget = previous month's actual CC spending per card (planning reference)
-    // Actual = current month's CC spending per card so far
+    // Prev month for CC budget reference
     let srcM = curMonth - 1, srcY = curYear;
     if (srcM < 0) { srcM = 11; srcY--; }
-    const ccBudgetMap = getCCChargesForMonth(srcY, srcM);   // prev month charges
-    const ccActualMap = getCCChargesForMonth(curYear, curMonth); // cur month charges so far
+
+    // Detail map: {sourceName -> {desc -> {prev, cur}}}
+    const detail = getOutflowDetailBySource(srcY, srcM, curYear, curMonth);
+
+    // ── 1. Credit Cards group ──
+    // Budget = prev month actual CC spending per card
+    // Actual = current month CC spending per card so far
+    const ccBudgetMap = {}; // cardName -> prev month total
+    const ccActualMap = {}; // cardName -> cur month total
+    D.ccCards.forEach(card => {
+      const d = detail[card.name] || {};
+      ccBudgetMap[card.name] = Object.values(d).reduce((s,v) => s + v.prev, 0);
+      ccActualMap[card.name] = Object.values(d).reduce((s,v) => s + v.cur,  0);
+    });
 
     // ── 2. Bank / UPI / Other groups ──
-    // Budget = budget items whose PRIMARY or SECONDARY source is a bank/cash (not CC)
-    // Actual = direct payments from registers (non-CC payment methods)
-    const directBudgetMap = {}; // sourceName -> budgeted amount
-    items.forEach(it => {
-      const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
-      const s2 = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
-      const a2 = (it.source2 && it.amt2) ? it.amt2 : 0;
-      const b  = it.budget || 0;
-      const isCCItem = it.cat === 'Credit Card Bills';
-      // CC bill items: their source is a bank account (that pays the CC bill) — count under bank
-      // Non-CC items paid directly by bank/cash: count
-      // Non-CC items paid by CC card: skip (already counted via CC actual above)
-      if (isCCItem || !CC_NAMES.has(s1)) {
-        if (!directBudgetMap[s1]) directBudgetMap[s1] = 0;
-        directBudgetMap[s1] += (s2 ? b - a2 : b);
-      }
-      if (s2 && (isCCItem || !CC_NAMES.has(s2))) {
-        if (!directBudgetMap[s2]) directBudgetMap[s2] = 0;
-        directBudgetMap[s2] += a2;
-      }
+    const directBudgetMap = {};
+    const directActualMap = {};
+    Object.entries(detail).forEach(([src, descs]) => {
+      if (CC_NAMES.has(src)) return; // CC handled above
+      directBudgetMap[src] = Object.values(descs).reduce((s,v) => s + v.prev, 0);
+      directActualMap[src] = Object.values(descs).reduce((s,v) => s + v.cur,  0);
     });
-
-    // Direct actuals from registers (non-CC payment methods only)
-    const directActualMap = getBankOutflowsForMonth(curYear, curMonth, CC_NAMES);
+    // Also include CC bill items from budget under the bank that pays them
+    items.filter(it => it.cat === 'Credit Card Bills').forEach(it => {
+      const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
+      if (!directBudgetMap[s1]) directBudgetMap[s1] = 0;
+      directBudgetMap[s1] += it.budget || 0;
+    });
 
     // ── 3. Helper: get payment group ──
-    const getGrp = src => {
-      const p = D.payments.find(p => p.name === src);
-      return p ? p.group : 'Other';
-    };
+    const getGrp = src => { const p = D.payments.find(p => p.name === src); return p ? p.group : 'Other'; };
 
     // ── 4. Build grouped structure ──
-    // Credit Cards group — keyed by card name
     const ccGroup = {};
-    const allCCNames = new Set([...Object.keys(ccBudgetMap), ...D.ccCards.map(c=>c.name)]);
-    allCCNames.forEach(name => {
-      const bgt = ccBudgetMap[name] || 0;
-      const act = ccActualMap[name] || 0;
-      if (bgt > 0 || act > 0) ccGroup[name] = {budget: bgt, actual: act};
+    D.ccCards.forEach(card => {
+      const bgt = ccBudgetMap[card.name] || 0;
+      const act = ccActualMap[card.name] || 0;
+      if (bgt > 0 || act > 0) ccGroup[card.name] = {budget:bgt, actual:act};
     });
-
-    // Bank/Other groups — keyed by source name
     const directGroup = {};
     const allDirectSrcs = new Set([...Object.keys(directBudgetMap), ...Object.keys(directActualMap)]);
     allDirectSrcs.forEach(src => {
       const bgt = directBudgetMap[src] || 0;
-      const act = (directActualMap[src]||{}).actual || 0;
-      if (bgt > 0 || act > 0) directGroup[src] = {budget: bgt, actual: act};
+      const act = directActualMap[src] || 0;
+      if (bgt > 0 || act > 0) directGroup[src] = {budget:bgt, actual:act};
     });
 
     // ── 5. Render ──
     const srcEl = document.getElementById('bgt-source-summary');
     srcEl.style.display = 'block';
 
-    // Column header row
+    // Helper to render indented detail rows for a source
+    const renderDetail = (srcName, isCCCard) => {
+      const descs = detail[srcName];
+      if (!descs) return '';
+      let rows = '';
+      Object.entries(descs).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([desc, v]) => {
+        const prev = v.prev, cur = v.cur;
+        if (!prev && !cur) return;
+        const vr = prev - cur;
+        const vrC = vr > 0 ? 'var(--green)' : vr < 0 ? 'var(--red)' : 'var(--muted)';
+        rows += `<div class="source-row" style="font-size:11px;border-bottom:1px solid #f8f4ef;">
+          <div style="color:var(--muted);padding-left:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escQ(desc)}">${esc(desc)}</div>
+          <div style="text-align:right;color:var(--text);">${prev>0?'&#8377;'+fmt(prev,2):'&#8212;'}</div>
+          <div style="text-align:right;color:var(--text);">${cur>0?'&#8377;'+fmt(cur,2):'&#8212;'}</div>
+          <div style="text-align:right;font-weight:600;color:${vrC};">${vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),2)}</div>
+        </div>`;
+      });
+      return rows;
+    };
+
     let srcHtml = `<div class="source-summary-title">
       <span>&#128179; Outflow Summary</span>
-      <span style="font-size:11px;color:var(--muted);">Prev Month Spend vs This Month Actual</span>
+      <span style="font-size:11px;color:var(--muted);">Prev Month vs This Month</span>
     </div>
     <div class="source-row hdr-row">
-      <div>Source</div>
+      <div>Source / Description</div>
       <div style="text-align:right;">Prev Month (&#8377;)</div>
       <div style="text-align:right;">This Month (&#8377;)</div>
       <div style="text-align:right;">Variance</div>
@@ -1034,12 +1045,13 @@ function renderBudget() {
       Object.entries(ccGroup).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name, v]) => {
         const vr  = v.budget - v.actual;
         const col = SRC_COLOR[name] || '#6b7280';
-        srcHtml += `<div class="source-row">
+        srcHtml += `<div class="source-row" style="font-weight:600;">
           <div class="source-name" style="color:${col};">&nbsp;&nbsp;${esc(name)}</div>
           <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,2)}</div>
           <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,2)}</div>
           <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),2)}</div>
         </div>`;
+        srcHtml += renderDetail(name, true);
       });
     }
 
@@ -1060,12 +1072,13 @@ function renderBudget() {
       grpSrcs.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([src, v]) => {
         const vr  = v.budget - v.actual;
         const col = SRC_COLOR[src] || '#6b7280';
-        srcHtml += `<div class="source-row">
+        srcHtml += `<div class="source-row" style="font-weight:600;">
           <div class="source-name" style="color:${col};">&nbsp;&nbsp;${esc(src)}</div>
           <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,2)}</div>
           <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,2)}</div>
           <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),2)}</div>
         </div>`;
+        srcHtml += renderDetail(src, false);
       });
     });
 
