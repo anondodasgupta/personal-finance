@@ -37,6 +37,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px;}
 .section-hdr h2{font-family:'Fraunces',serif;font-size:19px;color:var(--forest);}
 .badge{background:var(--forest);color:var(--gold-lt);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.month-nav-pr{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:10px 14px;margin-bottom:13px;border:1px solid var(--border);}
+.month-nav-pr-title{font-family:'Fraunces',serif;font-size:16px;color:var(--forest);flex:1;text-align:center;}
+.mn-btn-pr{background:var(--forest);color:var(--gold-lt);border:none;border-radius:6px;
+  padding:5px 13px;cursor:pointer;font-size:14px;font-weight:700;}
+.mn-btn-pr:hover{opacity:.85;}
+.month-summary-pr{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;}
+.msp{background:var(--card);border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow);border:1px solid var(--border);border-top:3px solid var(--gold-lt);}
+.msp-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.msp-val{font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--forest);}
 .bill-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:9px;
   overflow:hidden;border:1px solid var(--border);transition:transform .15s,box-shadow .15s;}
 .bill-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
@@ -247,6 +257,12 @@ tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;fo
 <!-- BILLS LIST -->
 <div id="page-bills" class="page active">
   <div class="page-pad">
+    <div class="month-nav-pr">
+      <button class="mn-btn-pr" onclick="changeBillsMonth(-1)">&#8249;</button>
+      <div class="month-nav-pr-title" id="bills-month-title">&#8212;</div>
+      <button class="mn-btn-pr" onclick="changeBillsMonth(1)">&#8250;</button>
+    </div>
+    <div class="month-summary-pr" id="bills-month-summary"></div>
     <div class="section-hdr">
       <h2>Purchase Bills</h2>
       <span class="badge" id="bills-count">0 bills</span>
@@ -551,6 +567,11 @@ let dashCharts = {};
 let tempCats = [];
 let tempShops = [];
 let tempPays = [];
+// Month navigation for bills page
+let billsMonth = new Date().getMonth();
+let billsYear  = new Date().getFullYear();
+const MONTHS_PR = ['January','February','March','April','May','June',
+                   'July','August','September','October','November','December'];
 // Emoji picker state
 let epTarget = null;   // 'new' | index (number)
 let epTab = 'Food';
@@ -708,15 +729,61 @@ function populateShopSelect() {
 }
 
 // ── BILLS LIST ─────────────────────────────────────────────────────────────
+function changeBillsMonth(dir) {
+  billsMonth += dir;
+  if (billsMonth > 11) { billsMonth = 0; billsYear++; }
+  if (billsMonth < 0)  { billsMonth = 11; billsYear--; }
+  renderBills();
+}
+
 function renderBills() {
+  var titleEl = document.getElementById('bills-month-title');
+  if (titleEl) titleEl.textContent = MONTHS_PR[billsMonth] + ' ' + billsYear;
+
   var el = document.getElementById('bills-list');
   var countEl = document.getElementById('bills-count');
-  countEl.textContent = D.bills.length + ' bill' + (D.bills.length !== 1 ? 's' : '');
-  if (!D.bills.length) {
-    el.innerHTML = '<div class="empty-state"><div class="ei">🧾</div><h3>No bills yet</h3><p>Tap + to add your first purchase bill.</p></div>';
+
+  // Filter to selected month
+  var prefix = billsYear + '-' + String(billsMonth + 1).padStart(2, '0');
+  var monthBills = D.bills.filter(function(b){ return b.date.startsWith(prefix); });
+
+  // Summary strip
+  var summaryEl = document.getElementById('bills-month-summary');
+  if (summaryEl) {
+    var totalAmt = monthBills.reduce(function(s,b){
+      return s + b.items.reduce(function(si,i){ return si + i.amount; }, 0);
+    }, 0);
+    var totalItems = monthBills.reduce(function(s,b){ return s + b.items.length; }, 0);
+    var payMap = {};
+    monthBills.forEach(function(b) {
+      var pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : b.paymentMethod;
+      var pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+      var tot = b.items.reduce(function(s,i){ return s + i.amount; }, 0);
+      var a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+      payMap[pm1] = (payMap[pm1]||0) + (tot - a2);
+      if (pm2) payMap[pm2] = (payMap[pm2]||0) + a2;
+    });
+    var topPay = Object.entries(payMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,4)
+      .map(function(e){ return e[0]+': &#8377;'+e[1].toLocaleString('en-IN',{maximumFractionDigits:0}); }).join(' &bull; ');
+    summaryEl.innerHTML =
+      '<div class="msp"><div class="msp-lbl">Bills</div><div class="msp-val">' + monthBills.length + '</div></div>' +
+      '<div class="msp"><div class="msp-lbl">Items</div><div class="msp-val">' + totalItems + '</div></div>' +
+      '<div class="msp"><div class="msp-lbl">Total</div><div class="msp-val">&#8377;' +
+        totalAmt.toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}) + '</div></div>' +
+      (topPay ? '<div class="msp" style="grid-column:1/-1;"><div class="msp-lbl">By Payment Method</div>' +
+        '<div style="font-size:11px;color:var(--forest);margin-top:3px;font-weight:600;">' + topPay + '</div></div>' : '');
+  }
+
+  countEl.textContent = monthBills.length + ' bill' + (monthBills.length !== 1 ? 's' : '') + ' &bull; ' + MONTHS_PR[billsMonth];
+
+  if (!monthBills.length) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">&#129502;</div>' +
+      '<h3>No bills in ' + MONTHS_PR[billsMonth] + ' ' + billsYear + '</h3>' +
+      '<p>Use the arrows above to navigate to a different month.</p></div>';
     return;
   }
-  var sorted = D.bills.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+
+  var sorted = monthBills.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var html = '';
   sorted.forEach(function(b) {
     var tot = b.items.reduce(function(s,i){ return s + i.amount; }, 0);
@@ -728,23 +795,22 @@ function renderBills() {
     var catHtml = cats.slice(0,4).map(catBadge).join('');
     if (cats.length > 4) catHtml += '<span style="font-size:10px;color:var(--muted);align-self:center;">+' + (cats.length-4) + ' more</span>';
     html += '<div class="bill-card">';
-    html += '<div class="bill-card-body" onclick="editBill(\'' + b.id + '\')">';
-    html += '<div class="bill-card-top"><div class="bill-shop">🏪 ' + b.shop + '</div><div class="bill-amt">₹' + fmt(tot) + '</div></div>';
-    html += '<div class="bill-meta"><span>📅 ' + fmtD(b.date) + '</span><span>💳 ' + pmDisplay + '</span>';
-    if (b.invoiceNo) html += '<span>🧾 ' + b.invoiceNo + '</span>';
+    html += '<div class="bill-card-body" onclick="editBill('' + b.id + '')">';
+    html += '<div class="bill-card-top"><div class="bill-shop">&#127978; ' + b.shop + '</div><div class="bill-amt">&#8377;' + fmt(tot) + '</div></div>';
+    html += '<div class="bill-meta"><span>&#128197; ' + fmtD(b.date) + '</span><span>&#128179; ' + pmDisplay + '</span>';
+    if (b.invoiceNo) html += '<span>&#129534; ' + b.invoiceNo + '</span>';
     html += '</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px;">' + catHtml + '</div>';
     html += '</div>';
     html += '<div class="bill-card-footer">';
     html += '<div class="bill-items-count">' + b.items.length + ' items</div>';
     html += '<div class="bill-payment">' + pmDisplay + '</div>';
     html += '<div style="display:flex;gap:5px;">';
-    html += '<button class="btn-icon" onclick="editBill(\'' + b.id + '\');event.stopPropagation()">✏️</button>';
-    html += '<button class="btn-icon del" onclick="delBillConfirm(\'' + b.id + '\');event.stopPropagation()">🗑️</button>';
+    html += '<button class="btn-icon" onclick="editBill('' + b.id + '');event.stopPropagation()">&#9998;</button>';
+    html += '<button class="btn-icon del" onclick="delBillConfirm('' + b.id + '');event.stopPropagation()">&#128465;</button>';
     html += '</div></div></div>';
   });
   el.innerHTML = html;
 }
-
 // ── BILL ENTRY ─────────────────────────────────────────────────────────────
 function newBill() {
   document.getElementById('edit-bill-id').value = '';
@@ -1103,6 +1169,7 @@ function addCategory() {
   var exists = tempCats.some(function(c){ return c.name.toLowerCase() === name.toLowerCase(); });
   if (exists) { showToast('Already exists.', 'error'); return; }
   tempCats.push({id: 'c' + Date.now(), name: name, emoji: emoji});
+  tempCats.sort(function(a,b){ return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
   document.getElementById('new-cat-emoji').value = '🏷️';
   document.getElementById('new-emj-btn').textContent = '🏷️';
   document.getElementById('new-cat-name').value = '';
@@ -1157,6 +1224,7 @@ function addShop() {
   var exists = tempShops.some(function(s){ return s.toLowerCase() === name.toLowerCase(); });
   if (exists) { showToast('Already exists.', 'error'); return; }
   tempShops.push(name);
+  tempShops.sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
   document.getElementById('new-shop-name').value = '';
   renderShopList();
 }
@@ -1224,6 +1292,7 @@ function addPayMethod() {
   var exists = tempPays.some(function(p){ return p.name.toLowerCase() === name.toLowerCase(); });
   if (exists) { showToast('Already exists.', 'error'); return; }
   tempPays.push({id: 'p' + Date.now(), group: group, name: name});
+  tempPays.sort(function(a,b){ return a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0; });
   document.getElementById('new-pay-name').value = '';
   renderPayList();
 }

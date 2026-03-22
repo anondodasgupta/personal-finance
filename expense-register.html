@@ -1003,6 +1003,7 @@ function addCategory() {
   if (!name) { showToast('Enter a category name.', 'error'); return; }
   if (tempCats.some(c => c.name.toLowerCase() === name.toLowerCase())) { showToast('Already exists.', 'error'); return; }
   tempCats.push({id:'ec'+Date.now(), name, emoji});
+  tempCats.sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
   document.getElementById('new-cat-emoji').value = '🏷️';
   document.getElementById('new-emj-btn').textContent = '🏷️';
   document.getElementById('new-cat-name').value = '';
@@ -1069,6 +1070,7 @@ function addPayMethod() {
   if (!name) { showToast('Enter a method name.', 'error'); return; }
   if (tempPays.some(p => p.name.toLowerCase() === name.toLowerCase())) { showToast('Already exists.', 'error'); return; }
   tempPays.push({id:'p'+Date.now(), group, name});
+  tempPays.sort((a,b) => a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
   document.getElementById('new-pay-name').value = '';
   renderPayList();
 }

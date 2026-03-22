@@ -649,6 +649,52 @@ function getActualsForMonth(year, month) {
   return map;
 }
 
+// Get total actual spend for a month (sum of ALL expense+purchase entries)
+function getTotalActualForMonth(year, month) {
+  const prefix = mk(year, month);
+  let total = 0;
+  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => { total += e.amount; });
+  getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
+    total += b.items.reduce((s,i)=>s+i.amount,0);
+  });
+  return total;
+}
+
+// Get bank outflow breakdown by payment source for a month
+// Only counts direct bank/cash payments (not CC payments — those are tracked via CC bill)
+function getBankOutflowsForMonth(year, month, ccNames) {
+  const prefix = mk(year, month);
+  const srcMap = {}; // sourceName -> {budget:0, actual:0}
+
+  function addActual(src, amt) {
+    if (!src) return;
+    if (!srcMap[src]) srcMap[src] = {budget:0, actual:0};
+    srcMap[src].actual += amt;
+  }
+
+  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
+    const pm1 = (e.paymentMethod==='Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod||'');
+    const pm2 = e.paymentMethod2 ? ((e.paymentMethod2==='Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
+    const a2  = (pm2 && e.paymentAmt2) ? e.paymentAmt2 : 0;
+    const a1  = e.amount - a2;
+    // Credit card charges: skip pm1/pm2 that are CC names (they'll be counted via CC bill payment)
+    if (!ccNames.has(pm1)) addActual(pm1, a1);
+    if (pm2 && !ccNames.has(pm2)) addActual(pm2, a2);
+  });
+
+  getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
+    const pm1 = (b.paymentMethod==='Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod||'');
+    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2==='Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    const tot = b.items.reduce((s,i)=>s+i.amount,0);
+    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    const a1  = tot - a2;
+    if (!ccNames.has(pm1)) addActual(pm1, a1);
+    if (pm2 && !ccNames.has(pm2)) addActual(pm2, a2);
+  });
+
+  return srcMap;
+}
+
 function getActualForItem(desc, year, month) {
   const map = getActualsForMonth(year, month);
   return map[desc.trim().toLowerCase()] || 0;
@@ -712,12 +758,21 @@ function getCCBill(card, dispYear, dispMonth) {
   };
 }
 
-function getDueStatus(y,m,d) {
+function getDueStatus(y,m,d, billTotal, isPaid) {
+  if (billTotal === 0) return {label:'No charges', cls:'cc-ok'};
+  if (isPaid)         return {label:'Paid ✓',      cls:'cc-ok'};
   const today = new Date(); today.setHours(0,0,0,0);
   const diff  = Math.round((new Date(y,m,d) - today) / 86400000);
   if (diff < 0)  return {label:'Overdue!', cls:'cc-overdue'};
   if (diff <= 7) return {label:'Due in '+diff+'d', cls:'cc-soon'};
   return {label:'On track', cls:'cc-ok'};
+}
+
+// Check if a CC bill has been paid: look for an expense entry matching 'CardName Bill' in curMonth
+function isCCBillPaid(cardName, year, month) {
+  const prefix = mk(year, month);
+  const desc = (cardName + ' Bill').toLowerCase();
+  return getExpenses().some(e => e.date.startsWith(prefix) && e.description.trim().toLowerCase() === desc);
 }
 
 // ══════════════════════════════════════════════════
@@ -814,18 +869,17 @@ function renderBudget() {
   const expenseItems = items.filter(it => it.cat !== 'Credit Card Bills');
 
   // KPI totals: use expense items only (CC bills duplicate underlying expenses)
-  // For actual spend: use actMap for expense items only (bank outflows)
-  let totBgt = 0, totAct = 0;
-  expenseItems.forEach(it => {
-    totBgt += (it.budget||0);
-    totAct += actMap[it.desc.trim().toLowerCase()] || 0;
-  });
+  let totBgt = 0;
+  expenseItems.forEach(it => { totBgt += (it.budget||0); });
   // Add CC bill budgets separately (these represent bank outflows for CC payments)
   let totCCBgt = ccBillItems.reduce((s,i)=>s+(i.budget||0), 0);
   const grandBgt = totBgt + totCCBgt;  // total of everything
-  const variance = totBgt - totAct;    // variance on non-CC expenses only
 
-  // Summary pills — show grand budget, actual non-CC spend, variance on expenses
+  // Actual spend = ALL expenses + purchases from registers for this month
+  const totAct = getTotalActualForMonth(curYear, curMonth);
+  const variance = grandBgt - totAct;  // variance against total budgeted
+
+  // Summary pills
   document.getElementById('bgt-summary').innerHTML = `
     <div class="sum-pill">
       <div class="sum-pill-lbl">Total Budgeted</div>
@@ -837,7 +891,7 @@ function renderBudget() {
       <div class="sum-pill-val">&#8377;${fmt(totBgt,0)}</div>
       <div class="sum-pill-sub">${expenseItems.length} items (excl. CC)</div>
     </div>
-    <div class="sum-pill ${totAct>totBgt?'red':'green'}">
+    <div class="sum-pill ${totAct>grandBgt?'red':'green'}">
       <div class="sum-pill-lbl">Actual Spend</div>
       <div class="sum-pill-val">&#8377;${fmt(totAct,0)}</div>
       <div class="sum-pill-sub">live from registers</div>
@@ -848,72 +902,90 @@ function renderBudget() {
       <div class="sum-pill-sub">${variance>=0?'Under budget':'Over budget'}</div>
     </div>`;
 
-  // Payment source summary — bank accounts only (real cash outflows)
-  // CC bill items: their source is the bank account (e.g. ICICI pays HDFC CC bill)
-  // Regular items paid by CC: the CC card collects them, bank pays the bill
-  // So for source summary: 
-  //   - CC bill items → count under their bank source (payFrom)
-  //   - Regular items paid directly by bank/cash → count under that source
-  //   - Regular items paid by CC → NOT counted here (covered by CC bill)
+  // Payment Source Summary — pulled directly from registers (actual bank outflows)
+  // Budget figures from budget items per source group
   const CC_NAMES = new Set(D.ccCards.map(c => c.name));
   if (items.length) {
-    const srcMap = {};
-    // Add CC bill items under their bank source (with dual payment split)
-    ccBillItems.forEach(it => {
-      const s1  = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
-      const s2  = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
-      const a2  = (it.source2 && it.amt2) ? it.amt2 : 0;
-      const bgt1= (it.budget||0) - a2;
-      const act1= Math.max(0, (actMap[it.desc.trim().toLowerCase()]||0) - a2);
-      const act2= Math.min(a2, actMap[it.desc.trim().toLowerCase()]||0);
-      if (!srcMap[s1]) srcMap[s1]={budget:0,actual:0};
-      srcMap[s1].budget += bgt1;
-      srcMap[s1].actual += act1;
-      if (s2) {
-        if (!srcMap[s2]) srcMap[s2]={budget:0,actual:0};
-        srcMap[s2].budget += a2;
-        srcMap[s2].actual += act2;
-      }
-    });
-    // Add non-CC expense items paid directly by bank/cash (not by a credit card)
-    expenseItems.forEach(it => {
+    // Build budget by source from budget items
+    const bgtSrcMap = {};
+    items.forEach(it => {
       const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'Other');
       const s2 = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
-      const act = actMap[it.desc.trim().toLowerCase()] || 0;
-      const bgt = it.budget || 0;
-      const amt2= it.amt2 || 0;
-      // Only include if paid directly by bank/cash (not a CC)
-      if (!CC_NAMES.has(s1)) {
-        if (!srcMap[s1]) srcMap[s1]={budget:0,actual:0};
-        srcMap[s1].budget += s2 ? (bgt - amt2) : bgt;
-        srcMap[s1].actual += s2 ? Math.max(0, act - amt2) : act;
+      const a2 = (it.source2 && it.amt2) ? it.amt2 : 0;
+      const b  = it.budget || 0;
+      const isCCItem = it.cat === 'Credit Card Bills';
+      // For CC bill items: source is a bank account - count directly
+      // For non-CC items paid by CC: don't count in bank outflow budget (it'll appear via CC bill)
+      // For non-CC items paid by bank/cash directly: count
+      if (isCCItem || !CC_NAMES.has(s1)) {
+        if (!bgtSrcMap[s1]) bgtSrcMap[s1] = {budget:0,actual:0,group:''};
+        bgtSrcMap[s1].budget += (s2 ? b - a2 : b);
       }
-      if (s2 && !CC_NAMES.has(s2)) {
-        if (!srcMap[s2]) srcMap[s2]={budget:0,actual:0};
-        srcMap[s2].budget += amt2;
-        srcMap[s2].actual += Math.min(act, amt2);
+      if (s2 && (isCCItem || !CC_NAMES.has(s2))) {
+        if (!bgtSrcMap[s2]) bgtSrcMap[s2] = {budget:0,actual:0,group:''};
+        bgtSrcMap[s2].budget += a2;
       }
+    });
+
+    // Get actuals from registers directly
+    const actSrcMap = getBankOutflowsForMonth(curYear, curMonth, CC_NAMES);
+
+    // Merge
+    const allSrcs = new Set([...Object.keys(bgtSrcMap), ...Object.keys(actSrcMap)]);
+    const mergedSrc = {};
+    allSrcs.forEach(src => {
+      mergedSrc[src] = {
+        budget: (bgtSrcMap[src]||{}).budget || 0,
+        actual: (actSrcMap[src]||{}).actual || 0
+      };
+    });
+
+    // Group by payment group
+    const getGroup = (src) => {
+      const p = D.payments.find(p => p.name === src);
+      return p ? p.group : 'Other';
+    };
+
+    // Build grouped display
+    const groupOrder = ['Credit Cards','Bank / UPI / Debit','Other'];
+    const grouped = {};
+    Object.entries(mergedSrc).forEach(([src, v]) => {
+      const g = getGroup(src);
+      if (!grouped[g]) grouped[g] = {};
+      grouped[g][src] = v;
     });
 
     const srcEl = document.getElementById('bgt-source-summary');
     srcEl.style.display = 'block';
     let srcHtml = `<div class="source-summary-title">
       <span>&#128179; Payment Source Summary (Bank Outflows)</span>
-      <span style="font-size:11px;color:var(--muted);">Budget vs Actual</span>
-    </div>
-    <div class="source-row hdr-row">
-      <div>Source</div><div style="text-align:right;">Budget (&#8377;)</div>
-      <div style="text-align:right;">Actual (&#8377;)</div><div style="text-align:right;">Variance</div>
+      <span style="font-size:11px;color:var(--muted);">Budget vs Actual by Group</span>
     </div>`;
-    Object.entries(srcMap).sort((a,b)=>b[1].budget-a[1].budget).forEach(([src, v]) => {
-      const vr = v.budget - v.actual;
-      const col = SRC_COLOR[src] || '#6b7280';
-      srcHtml += `<div class="source-row">
-        <div class="source-name" style="color:${col};">&#128179; ${esc(src)}</div>
-        <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
-        <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
-        <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
+
+    groupOrder.forEach(grp => {
+      if (!grouped[grp] || !Object.keys(grouped[grp]).length) return;
+      const grpItems = grouped[grp];
+      const grpBgt = Object.values(grpItems).reduce((s,v)=>s+v.budget,0);
+      const grpAct = Object.values(grpItems).reduce((s,v)=>s+v.actual,0);
+      const grpVr  = grpBgt - grpAct;
+      srcHtml += `
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px;padding:0 2px;">
+        ${esc(grp)}
+        <span style="float:right;font-family:'Fraunces',serif;font-size:12px;color:var(--burgundy);letter-spacing:0;text-transform:none;">
+          Bgt: &#8377;${fmt(grpBgt,0)} &nbsp;|&nbsp; Act: &#8377;${fmt(grpAct,0)} &nbsp;|&nbsp;
+          <span style="color:${grpVr>=0?'var(--green)':'var(--red);'};">${grpVr>=0?'+':''}&#8377;${fmt(Math.abs(grpVr),0)}</span>
+        </span>
       </div>`;
+      Object.entries(grpItems).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([src, v]) => {
+        const vr  = v.budget - v.actual;
+        const col = SRC_COLOR[src] || '#6b7280';
+        srcHtml += `<div class="source-row">
+          <div class="source-name" style="color:${col};">&#8627; ${esc(src)}</div>
+          <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
+          <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
+          <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
+        </div>`;
+      });
     });
     srcEl.innerHTML = srcHtml;
   } else {
@@ -1054,8 +1126,14 @@ function autoPopulate() {
   });
 
   // CC bills DUE in this month
+  // For each card, compute what dispMonth (cycle-end month) would produce a due date in curMonth/curYear
+  // dueMonth = endMonth + dueOffset  →  endMonth = dueMonth - dueOffset
   D.ccCards.forEach(card => {
-    const bill   = getCCBill(card, curYear, curMonth);
+    // Work backwards: if due month is curMonth, what cycle-end month/year?
+    let ceM = curMonth - card.dueOffset;
+    let ceY = curYear;
+    if (ceM < 0) { ceM += 12; ceY--; }
+    const bill   = getCCBill(card, ceY, ceM);
     const ccDesc = card.name + ' Bill';
     if (!existing.some(e=>e.desc.toLowerCase()===ccDesc.toLowerCase())) {
       const dueStr = fmtDate(bill.duY, bill.duM, bill.duD);
@@ -1068,7 +1146,36 @@ function autoPopulate() {
   });
 
   save(); renderBudget();
-  if (added) toast('Added '+added+' item'+(added!==1?'s':'')+' from '+MONTHS[srcM]+' '+srcY+'.','success');
+
+  // Issue 6: Sync any new categories/payment methods encountered back to the managers
+  let syncedCats=0, syncedPays=0;
+  existing.forEach(it => {
+    // Sync category
+    if (it.cat && !D.categories.some(c=>c.toLowerCase()===it.cat.toLowerCase())) {
+      D.categories.push(it.cat);
+      syncedCats++;
+    }
+    // Sync payment sources
+    [it.source, it.source2].forEach(src => {
+      if (!src || src==='Other' || src==='' || src==='— None —') return;
+      if (!D.payments.some(p=>p.name.toLowerCase()===src.toLowerCase())) {
+        // Guess group
+        const isCC = D.ccCards.some(c=>c.name.toLowerCase()===src.toLowerCase());
+        const isBank = ['Axis Bank','ICICI Bank','Yes Bank'].some(b=>b.toLowerCase()===src.toLowerCase());
+        const grp = isCC ? 'Credit Cards' : isBank ? 'Bank / UPI / Debit' : 'Other';
+        D.payments.push({id:'p'+Date.now()+Math.random().toString(36).substr(2,4), group:grp, name:src});
+        syncedPays++;
+      }
+    });
+  });
+  if (syncedCats || syncedPays) {
+    // Re-sort after sync
+    D.categories.sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
+    D.payments.sort((a,b)=> a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
+    save();
+  }
+
+  if (added) toast('Added '+added+' item'+(added!==1?'s':'')+' from '+MONTHS[srcM]+' '+srcY+'.'+(syncedCats||syncedPays?' ('+((syncedCats?syncedCats+' cat':'')+(syncedPays?(syncedCats?', ':'')+syncedPays+' pay':''))+' synced)':''),'success');
   else toast('All items already present for '+MONTHS[curMonth]+' '+curYear+'.','info');
 }
 
@@ -1140,7 +1247,7 @@ function renderCC() {
   D.ccCards.forEach(card => {
     const bill   = getCCBill(card, curYear, curMonth);
     grand       += bill.total;
-    const dueSt  = getDueStatus(bill.duY, bill.duM, bill.duD);
+    const dueSt  = getDueStatus(bill.duY, bill.duM, bill.duD, bill.total, isCCBillPaid(card.name, curYear, curMonth));
     const cyStr  = fmtDate(bill.csY,bill.csM,bill.csD)+' &#8594; '+fmtDate(bill.ceY,bill.ceM,bill.ceD);
     const duStr  = fmtDate(bill.duY,bill.duM,bill.duD);
     const col    = SRC_COLOR[card.name] || '#6b7280';
@@ -1261,6 +1368,7 @@ function addCat() {
   if (!name) { toast('Enter category name.','error'); return; }
   if (tempCats.some(c=>c.toLowerCase()===name.toLowerCase())) { toast('Already exists.','error'); return; }
   tempCats.push(name);
+  tempCats.sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
   document.getElementById('new-cat').value = '';
   renderCatList();
 }
@@ -1315,6 +1423,8 @@ function addPay() {
   if (!name) { toast('Enter method name.','error'); return; }
   if (tempPays.some(p=>p.name.toLowerCase()===name.toLowerCase())) { toast('Already exists.','error'); return; }
   tempPays.push({id:'p'+Date.now(),group:grp,name});
+  // Sort within each group alphabetically
+  tempPays.sort((a,b)=> a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
   document.getElementById('new-pay-name').value='';
   renderPayList();
 }
