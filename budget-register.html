@@ -647,7 +647,7 @@ function getActualsForMonth(year, month) {
     const directAmt = (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
     if (directAmt > 0) {
       const k = e.description.trim().toLowerCase();
-      map[k] = (map[k]||0) + directAmt;
+      map[k] = Math.round(((map[k]||0) + directAmt) * 100) / 100;
     }
   });
 
@@ -663,7 +663,7 @@ function getActualsForMonth(year, month) {
   });
   if (purTotal > 0) {
     const k = 'groceries & purchases';
-    map[k] = (map[k]||0) + purTotal;
+    map[k] = Math.round(((map[k]||0) + purTotal) * 100) / 100;
   }
   return map;
 }
@@ -1149,7 +1149,7 @@ function formatBgtInput(val) {
 function updateBgt(key, id, val) {
   const n  = parseFloat(String(val).replace(/[^0-9.]/g, ''));
   const it = (D.budgets[key]||[]).find(i=>i.id===id);
-  if (it) { it.budget = isNaN(n) ? 0 : n; save(); renderBudget(); }
+  if (it) { it.budget = isNaN(n) ? 0 : Math.round(n*100)/100; save(); renderBudget(); }
 }
 
 // ══════════════════════════════════════════════════
@@ -1168,7 +1168,7 @@ function addBgtItem() {
   const key = mk(curYear,curMonth);
   if (!D.budgets[key]) D.budgets[key] = [];
   if (D.budgets[key].some(i=>i.desc.toLowerCase()===desc.toLowerCase())) { toast('Item already exists.','error'); return; }
-  D.budgets[key].push({id:gid(),desc,cat,budget:amt,source:src,sourceOther:srcO,source2:src2,amt2,sourceOther2:src2O,notes:''});
+  D.budgets[key].push({id:gid(),desc,cat,budget:Math.round(amt*100)/100,source:src,sourceOther:srcO,source2:src2,amt2:Math.round(amt2*100)/100,sourceOther2:src2O,notes:''});
   save();
   document.getElementById('ni-desc').value = '';
   document.getElementById('ni-amt').value  = '';
@@ -1228,9 +1228,9 @@ function autoPopulate() {
   let added = 0;
   Object.values(grouped).forEach(g => {
     if (!existing.some(e=>e.desc.toLowerCase()===g.desc.toLowerCase())) {
-      existing.push({id:gid(), desc:g.desc, cat:g.cat, budget:g.amount,
+      existing.push({id:gid(), desc:g.desc, cat:g.cat, budget:Math.round(g.amount*100)/100,
         source:g.source, sourceOther:g.sourceOther,
-        source2:g.source2, amt2:g.amt2, sourceOther2:g.sourceOther2, notes:''});
+        source2:g.source2, amt2:Math.round(g.amt2*100)/100, sourceOther2:g.sourceOther2, notes:''});
       added++;
     }
   });
@@ -1325,11 +1325,11 @@ function saveEditItem() {
   const src2 = document.getElementById('ei-src2').value;
   it.desc        = document.getElementById('ei-desc').value.trim() || it.desc;
   it.cat         = document.getElementById('ei-cat').value;
-  it.budget      = parseFloat(String(document.getElementById('ei-amt').value).replace(/[^0-9.]/g,''))||0;
+  it.budget      = Math.round((parseFloat(String(document.getElementById('ei-amt').value).replace(/[^0-9.]/g,''))||0)*100)/100;
   it.source      = document.getElementById('ei-src').value;
   it.sourceOther = it.source==='Other' ? document.getElementById('ei-src-other').value.trim() : '';
   it.source2     = src2;
-  it.amt2        = src2 ? (parseFloat(String(document.getElementById('ei-amt2').value).replace(/[^0-9.]/g,''))||0) : 0;
+  it.amt2        = src2 ? (Math.round((parseFloat(String(document.getElementById('ei-amt2').value).replace(/[^0-9.]/g,''))||0)*100)/100) : 0;
   it.sourceOther2= src2==='Other' ? document.getElementById('ei-src2-other').value.trim() : '';
   it.notes       = document.getElementById('ei-notes').value.trim();
   save(); closeModal('edit-modal'); renderBudget();
