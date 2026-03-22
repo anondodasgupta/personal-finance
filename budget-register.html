@@ -973,18 +973,18 @@ function renderBudget() {
       const grpVr  = grpBgt - grpAct;
       srcHtml += `<div class="source-row" style="background:#f5f0e8;font-weight:700;font-size:11px;">
         <div style="color:var(--burgundy);">&#128179; CREDIT CARDS</div>
-        <div style="text-align:right;font-family:'Fraunces',serif;color:var(--burgundy);">&#8377;${fmt(grpBgt,0)}</div>
-        <div style="text-align:right;color:${grpAct>grpBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(grpAct,0)}</div>
-        <div style="text-align:right;color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(grpVr),0)}</div>
+        <div style="text-align:right;font-family:'Fraunces',serif;color:var(--burgundy);">&#8377;${fmt(grpBgt,2)}</div>
+        <div style="text-align:right;color:${grpAct>grpBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(grpAct,2)}</div>
+        <div style="text-align:right;color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(grpVr),2)}</div>
       </div>`;
       Object.entries(ccGroup).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name, v]) => {
         const vr  = v.budget - v.actual;
         const col = SRC_COLOR[name] || '#6b7280';
         srcHtml += `<div class="source-row">
           <div class="source-name" style="color:${col};">&nbsp;&nbsp;${esc(name)}</div>
-          <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
-          <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
-          <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
+          <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,2)}</div>
+          <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,2)}</div>
+          <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),2)}</div>
         </div>`;
       });
     }
@@ -999,18 +999,18 @@ function renderBudget() {
       const grpLabel = grp === 'Bank / UPI / Debit' ? 'BANK / UPI / DEBIT' : 'OTHER';
       srcHtml += `<div class="source-row" style="background:#f5f0e8;font-weight:700;font-size:11px;margin-top:4px;">
         <div style="color:var(--burgundy);">&#127968; ${grpLabel}</div>
-        <div style="text-align:right;font-family:'Fraunces',serif;color:var(--burgundy);">&#8377;${fmt(grpBgt,0)}</div>
-        <div style="text-align:right;color:${grpAct>grpBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(grpAct,0)}</div>
-        <div style="text-align:right;color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(grpVr),0)}</div>
+        <div style="text-align:right;font-family:'Fraunces',serif;color:var(--burgundy);">&#8377;${fmt(grpBgt,2)}</div>
+        <div style="text-align:right;color:${grpAct>grpBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(grpAct,2)}</div>
+        <div style="text-align:right;color:${grpVr>=0?'var(--green)':'var(--red)'};">${grpVr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(grpVr),2)}</div>
       </div>`;
       grpSrcs.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([src, v]) => {
         const vr  = v.budget - v.actual;
         const col = SRC_COLOR[src] || '#6b7280';
         srcHtml += `<div class="source-row">
           <div class="source-name" style="color:${col};">&nbsp;&nbsp;${esc(src)}</div>
-          <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,0)}</div>
-          <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,0)}</div>
-          <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),0)}</div>
+          <div style="text-align:right;font-family:'Fraunces',serif;font-size:13px;color:var(--burgundy);">&#8377;${fmt(v.budget,2)}</div>
+          <div style="text-align:right;font-size:12px;color:${v.actual>v.budget?'var(--red)':'var(--green)'};">&#8377;${fmt(v.actual,2)}</div>
+          <div style="text-align:right;font-size:11px;font-weight:700;color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'&#9660;':'&#9650;'}&#8377;${fmt(Math.abs(vr),2)}</div>
         </div>`;
       });
     });
@@ -1043,7 +1043,7 @@ function renderBudget() {
     html += `<div class="budget-table-wrap">
       <div class="bgt-header">
         <div class="bgt-header-title">${esc(cat)}</div>
-        <div class="bgt-header-total">&#8377;${fmt(catBgt,0)} bgt &nbsp;&#183;&nbsp; &#8377;${fmt(catAct,0)} actual</div>
+        <div class="bgt-header-total">&#8377;${fmt(catBgt,2)} bgt &nbsp;&#183;&nbsp; &#8377;${fmt(catAct,2)} actual</div>
       </div>
       <div class="bgt-row hdr" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>Description</div><div>Payment Source</div><div>Budget</div><div>Actual</div><div>Variance</div><div></div>
@@ -1051,23 +1051,35 @@ function renderBudget() {
 
     catItems.forEach(it => {
       const isCCBill = it.cat === 'Credit Card Bills';
-      // CC bill actual = expense entry for that payment in the CURRENT budget month
-      // If not yet paid (no entry in current month), shows 0
-      const act = actMap[it.desc.trim().toLowerCase()] || 0;
-      const vr  = (it.budget||0) - act;
+      const descKey  = it.desc.trim().toLowerCase();
+
+      // For CC bill items: actual = live charges from CC register (auto-updates as expenses recorded)
+      // Budget = live CC charge total too (so budget always reflects current cycle spend)
+      // For regular items: actual = matching expense entry in this month
+      let bgt, act;
+      if (isCCBill && ccLiveMap.hasOwnProperty(descKey)) {
+        act = ccLiveMap[descKey];   // live CC charges for this card's cycle due this month
+        bgt = it.budget || 0;      // user-editable planned budget for this card
+      } else {
+        act = actMap[descKey] || 0;
+        bgt = it.budget || 0;
+      }
+
+      const vr  = bgt - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
-      const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),0);
+      const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),2);
       const sCol= SRC_COLOR[it.source] || '#6b7280';
 
       html += `<div class="bgt-row" style="grid-template-columns:2fr 1.3fr 1fr 1fr 1fr auto;">
         <div>
           <div class="bgt-desc" title="${escQ(it.desc)}">${isCCBill?'&#128179; ':''}${esc(it.desc)}</div>
           ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
+          ${isCCBill?'<div class="bgt-note" style="color:var(--teal);">Live from CC register</div>':''}
         </div>
         <div class="bgt-src" style="color:${sCol};font-size:10px;">${esc(srcDisplay(it))}</div>
-        <div><input class="bgt-inp" type="number" value="${it.budget||0}"
-          onchange="updateBgt('${key}','${it.id}',this.value)"></div>
-        <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,0):'&#8212;'}</div>
+        <div><input class="bgt-inp" type="number" value="${fmt(bgt,2)}"
+          onchange="updateBgt('${key}','${it.id}',this.value)" ${isCCBill?'style="background:#f0f9ff;"':''}></div>
+        <div class="bgt-actual" style="color:${act>0?'var(--text)':'var(--muted)'};">${act>0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
           <button class="btn-icon" onclick="openEdit('${key}','${it.id}')">&#9998;</button>
@@ -1146,7 +1158,7 @@ function autoPopulate() {
   let added = 0;
   Object.values(grouped).forEach(g => {
     if (!existing.some(e=>e.desc.toLowerCase()===g.desc.toLowerCase())) {
-      existing.push({id:gid(), desc:g.desc, cat:g.cat, budget:Math.round(g.amount),
+      existing.push({id:gid(), desc:g.desc, cat:g.cat, budget:g.amount,
         source:g.source, sourceOther:g.sourceOther,
         source2:g.source2, amt2:g.amt2, sourceOther2:g.sourceOther2, notes:''});
       added++;
@@ -1166,7 +1178,7 @@ function autoPopulate() {
     if (!existing.some(e=>e.desc.toLowerCase()===ccDesc.toLowerCase())) {
       const dueStr = fmtDate(bill.duY, bill.duM, bill.duD);
       existing.push({id:gid(), desc:ccDesc, cat:'Credit Card Bills',
-        budget:Math.round(bill.total), source:card.payFrom||'Other', sourceOther:'',
+        budget:bill.total, source:card.payFrom||'Other', sourceOther:'',
         source2:'', amt2:0, sourceOther2:'',
         notes: bill.total>0 ? 'Due '+dueStr : 'No charges this cycle'});
       added++;
@@ -1289,7 +1301,7 @@ function renderCC() {
           <div style="font-size:10px;color:var(--muted);margin-top:1px;">Pay from: <strong>${esc(pf)}</strong></div>
         </div>
         <div style="text-align:right;">
-          <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:700;color:${col};">&#8377;${fmt(bill.total,0)}</div>
+          <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:700;color:${col};">&#8377;${fmt(bill.total,2)}</div>
           <span class="cc-badge ${dueSt.cls}">${dueSt.label}</span>
         </div>
       </div>
@@ -1298,7 +1310,7 @@ function renderCC() {
         <div class="cc-row"><span class="cc-row-lbl">Transactions</span><span class="cc-row-val">${bill.txns.length}</span></div>
         ${bill.txns.slice(0,3).map(t=>`<div class="cc-row">
           <span class="cc-row-lbl" style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.desc)}</span>
-          <span class="cc-row-val" style="font-size:11px;">&#8377;${fmt(t.amount,0)}</span>
+          <span class="cc-row-val" style="font-size:11px;">&#8377;${fmt(t.amount,2)}</span>
         </div>`).join('')}
         ${bill.txns.length>3?`<div style="font-size:10px;color:var(--muted);padding:4px 0;">+${bill.txns.length-3} more &#8212; tap to see all</div>`:''}
         <div class="cc-row" style="margin-top:4px;">
