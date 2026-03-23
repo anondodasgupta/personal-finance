@@ -119,7 +119,7 @@
 
   /* ========== FORM PAGE ========== */
   .form-container {
-    max-width: 700px;
+    max-width: 1100px;
     margin: 32px auto;
     padding: 0 16px;
   }
@@ -128,6 +128,7 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     overflow: hidden;
+    max-width: 700px;
   }
   .form-card-header {
     background: linear-gradient(135deg, var(--navy) 0%, var(--navy3) 100%);
@@ -241,7 +242,7 @@
 
   /* ========== RECORDS TABLE ========== */
   .records-section {
-    max-width: 700px;
+    max-width: 1100px;
     margin: 24px auto 40px;
     padding: 0 16px;
   }
@@ -292,6 +293,19 @@
   }
   table tr:last-child td { border-bottom: none; }
   table tr:hover td { background: #fdf8ee; }
+  /* Sticky Actions column */
+  table th:last-child,
+  table td:last-child {
+    position: sticky;
+    right: 0;
+    background: var(--white);
+    z-index: 2;
+    box-shadow: -3px 0 8px rgba(13,27,42,0.07);
+  }
+  table th:last-child {
+    background: var(--navy);
+  }
+  table tr:hover td:last-child { background: #fdf8ee; }
   .diff-pos { color: #059669; font-weight: 600; }
   .diff-neg { color: #dc2626; font-weight: 600; }
   .diff-zero { color: #0369a1; font-weight: 600; }
@@ -488,7 +502,7 @@
     box-shadow: var(--shadow);
     padding: 20px 28px;
     margin: 0 16px 16px;
-    max-width: 700px;
+    max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
     display: flex;
