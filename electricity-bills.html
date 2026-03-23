@@ -501,6 +501,42 @@
   .data-mgmt-info strong { color: var(--navy); }
   .data-mgmt-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  /* Copy/Paste modal */
+  .copypaste-modal {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 28px;
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.25s ease;
+  }
+  .copypaste-modal h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .copypaste-modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+  .copypaste-modal textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', monospace;
+    font-size: 12px;
+    color: var(--text);
+    background: #fafaf8;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .copypaste-modal textarea:focus { border-color: var(--gold); }
+  .copypaste-modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+
   .no-data {
     text-align: center;
     padding: 64px 20px;
@@ -667,6 +703,8 @@
       <button class="btn btn-secondary" onclick="exportData()" style="padding:9px 16px;font-size:13px;">⬇️ Export JSON</button>
       <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="padding:9px 16px;font-size:13px;">⬆️ Import JSON</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn btn-secondary" onclick="openCopyModal()" style="padding:9px 16px;font-size:13px;">📋 Copy Data</button>
+      <button class="btn btn-secondary" onclick="openPasteModal()" style="padding:9px 16px;font-size:13px;">📥 Paste Data</button>
     </div>
   </div>
 </div>
@@ -695,6 +733,32 @@
     </div>
 
     <div id="dash-content"></div>
+  </div>
+</div>
+
+<!-- Copy Data Modal -->
+<div class="modal-overlay" id="copy-modal">
+  <div class="copypaste-modal">
+    <h3>📋 Copy Data</h3>
+    <p>Your data is shown below as JSON. Select all and copy it, then paste it on any other device to sync.</p>
+    <textarea id="copy-textarea" readonly onclick="this.select()"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeCopyModal()">Close</button>
+      <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- Paste Data Modal -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="copypaste-modal">
+    <h3>📥 Paste Data</h3>
+    <p>Paste the JSON data copied from another device below. Existing entries for the same month/year will be skipped; only new entries will be added.</p>
+    <textarea id="paste-textarea" placeholder="Paste your JSON data here..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closePasteModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="processPaste()">📥 Import Pasted Data</button>
+    </div>
   </div>
 </div>
 
@@ -1167,6 +1231,71 @@ function renderDashboard() {
       }
     }
   });
+}
+
+// ==================== COPY / PASTE ====================
+function openCopyModal() {
+  if (bills.length === 0) { showToast('No data to copy.', 'error'); return; }
+  const json = JSON.stringify({ bills, exportedAt: new Date().toISOString() }, null, 2);
+  document.getElementById('copy-textarea').value = json;
+  document.getElementById('copy-modal').classList.add('open');
+  setTimeout(() => document.getElementById('copy-textarea').select(), 100);
+}
+
+function closeCopyModal() {
+  document.getElementById('copy-modal').classList.remove('open');
+}
+
+function copyToClipboard() {
+  const ta = document.getElementById('copy-textarea');
+  ta.select();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(() => {
+        showToast('✅ Data copied to clipboard!', 'success');
+        closeCopyModal();
+      }).catch(() => {
+        document.execCommand('copy');
+        showToast('✅ Data copied to clipboard!', 'success');
+        closeCopyModal();
+      });
+    } else {
+      document.execCommand('copy');
+      showToast('✅ Data copied to clipboard!', 'success');
+      closeCopyModal();
+    }
+  } catch { showToast('⚠️ Copy failed. Please select all and copy manually (Ctrl+A, Ctrl+C).', 'error'); }
+}
+
+function openPasteModal() {
+  document.getElementById('paste-textarea').value = '';
+  document.getElementById('paste-modal').classList.add('open');
+  setTimeout(() => document.getElementById('paste-textarea').focus(), 100);
+}
+
+function closePasteModal() {
+  document.getElementById('paste-modal').classList.remove('open');
+}
+
+function processPaste() {
+  const raw = document.getElementById('paste-textarea').value.trim();
+  if (!raw) { showToast('⚠️ Nothing to import. Paste your JSON data first.', 'error'); return; }
+  try {
+    const obj = JSON.parse(raw);
+    const imported = Array.isArray(obj) ? obj : (obj.bills || []);
+    if (!imported.length) throw new Error('No data');
+    let added = 0;
+    imported.forEach(b => {
+      if (!bills.find(x => x.year == b.year && x.month === b.month)) {
+        bills.push({ ...b, id: b.id || genId() });
+        added++;
+      }
+    });
+    saveData();
+    renderRecords();
+    showToast(`✅ Imported ${added} new entr${added === 1 ? 'y' : 'ies'}.`, 'success');
+    closePasteModal();
+  } catch { showToast('❌ Invalid data. Please paste valid JSON copied from this app.', 'error'); }
 }
 
 // ==================== IMPORT/EXPORT ====================
