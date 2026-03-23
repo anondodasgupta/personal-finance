@@ -1246,7 +1246,7 @@ function autoPopulate() {
     const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
     const a2  = (pm2 && e.paymentAmt2) ? parseFloat(e.paymentAmt2)||0 : 0;
     const totalAmt = parseFloat(e.amount) || 0;
-    if (totalAmt <= 0) return;
+    if (totalAmt === 0) return;
     const k = e.description.trim();
     if (!grouped[k]) grouped[k] = {desc:k, cat:e.category||'Other', amount:0,
       source:pm1||'Other', sourceOther:e.paymentOther||'',
