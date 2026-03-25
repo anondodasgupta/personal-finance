@@ -213,6 +213,17 @@ table tr:hover td{background:#fdf9f2;}
   .source-row{grid-template-columns:1.5fr 1fr 1fr 1fr;font-size:11px;}
 }
 @media(max-width:380px){.kpi-row{grid-template-columns:1fr;}.source-row{grid-template-columns:1fr 1fr;}}
+
+/* ── SYNC MODALS ── */
+.sync-overlay{display:none;position:fixed;inset:0;background:rgba(26,26,46,.65);z-index:300;align-items:flex-end;justify-content:center;}
+.sync-overlay.open{display:flex;}
+.sync-modal{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:20px 18px;animation:slideUp .25s ease;padding-bottom:max(env(safe-area-inset-bottom),16px);}
+@media(min-width:600px){.sync-modal{border-radius:var(--r);margin:auto;}}
+.sync-modal h3{font-family:'Fraunces',serif;font-size:15px;color:var(--ink);margin-bottom:7px;}
+.sync-modal p{font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.sync-modal textarea{width:100%;height:130px;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;font-family:monospace;font-size:11px;resize:vertical;outline:none;background:#fafaf6;color:var(--text);}
+.sync-modal textarea:focus{border-color:var(--burgundy);}
+.sync-modal-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:11px;flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -282,8 +293,8 @@ table tr:hover td{background:#fdf9f2;}
       display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;border:1px solid var(--border);">
       <div style="font-size:11px;color:var(--muted);"><strong style="color:var(--burgundy);">&#128190; Data</strong> stored locally. Export to back up.</div>
       <div style="display:flex;gap:5px;">
-        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard()" title="Copy all data to clipboard">📋 Copy</button>
-        <button class="btn btn-secondary btn-sm" onclick="pasteFromClipboard()" title="Paste data from clipboard (copied on another device)">📥 Paste Sync</button>
+        <button class="btn btn-secondary btn-sm" onclick="openCopyModal()" title="Copy all data to clipboard for syncing">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="openPasteModal()" title="Paste data copied on another device">📥 Paste Sync</button>
         <button class="btn btn-secondary btn-sm" onclick="exportData()">&#8595; Export</button>
         <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">&#8593; Import</button>
         <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(event)">
@@ -1793,7 +1804,8 @@ function exportData() {
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify({...D,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}));
   a.download='budget-register-'+new Date().toISOString().split('T')[0]+'.json';
-  a.click(); URL.revokeObjectURL(a.href);
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
   toast('Exported!','success');
 }
 function importData(e) {
@@ -1844,33 +1856,39 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 // -- CLIPBOARD SYNC --
-function copyToClipboard() {
+// -- CLIPBOARD SYNC (modal-based) --
+function openCopyModal() {
   const raw = localStorage.getItem('budget_register_v3');
   if (!raw) { showToast('No data to copy.', 'error'); return; }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(raw)
-      .then(() => showToast('✅ Copied! Open other device → tap Paste Sync.', 'success'))
-      .catch(() => _fbCopy(raw));
-  } else { _fbCopy(raw); }
+  document.getElementById('copy-textarea').value = raw;
+  document.getElementById('copy-modal').classList.add('open');
+  setTimeout(() => document.getElementById('copy-textarea').select(), 100);
 }
-function _fbCopy(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  try { document.execCommand('copy'); showToast('✅ Copied! Paste on other device.', 'success'); }
-  catch(e) { showToast('❌ Copy failed. Use Export instead.', 'error'); }
-  document.body.removeChild(ta);
+function closeCopyModal() { document.getElementById('copy-modal').classList.remove('open'); }
+function copyToClipboard() {
+  const ta = document.getElementById('copy-textarea');
+  ta.select();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value)
+        .then(() => { showToast('✅ Copied to clipboard!', 'success'); closeCopyModal(); })
+        .catch(() => { document.execCommand('copy'); showToast('✅ Copied!', 'success'); closeCopyModal(); });
+    } else {
+      document.execCommand('copy');
+      showToast('✅ Copied!', 'success');
+      closeCopyModal();
+    }
+  } catch { showToast('⚠️ Auto-copy failed — select all (Ctrl+A) and copy manually (Ctrl+C).', 'error'); }
 }
-function pasteFromClipboard() {
-  if (navigator.clipboard && navigator.clipboard.readText) {
-    navigator.clipboard.readText()
-      .then(text => _mergePasted(text))
-      .catch(() => showToast('❌ Clipboard read failed. Use Import instead.', 'error'));
-  } else {
-    showToast('❌ Clipboard read not supported. Use Import instead.', 'error');
-  }
+function openPasteModal() {
+  document.getElementById('paste-textarea').value = '';
+  document.getElementById('paste-modal').classList.add('open');
+  setTimeout(() => document.getElementById('paste-textarea').focus(), 100);
 }
-function _mergePasted(text) {
+function closePasteModal() { document.getElementById('paste-modal').classList.remove('open'); }
+function processPaste() {
+  const text = document.getElementById('paste-textarea').value.trim();
+  if (!text) { showToast('⚠️ Nothing to import — paste your JSON data first.', 'error'); return; }
   try {
     const obj = JSON.parse(text);
     if (obj.budgets && typeof obj.budgets==='object') {
@@ -1882,10 +1900,33 @@ function _mergePasted(text) {
     if (Array.isArray(obj.ccCards)    && obj.ccCards.length)    D.ccCards    = obj.ccCards;
     if (Array.isArray(obj.categories) && obj.categories.length) D.categories = obj.categories;
     if (Array.isArray(obj.payments)   && obj.payments.length)   D.payments   = obj.payments;
-    save(); renderBudget();
+    save(); renderBudget(); closePasteModal();
     showToast('✅ Synced successfully!', 'success');
-  } catch(e) { showToast('❌ Invalid data in clipboard.', 'error'); }
+  } catch(e) { showToast('❌ Invalid data — paste valid JSON from the Copy Sync function.', 'error'); }
 }
 </script>
+<!-- Copy Sync Modal -->
+<div class="sync-overlay" id="copy-modal">
+  <div class="sync-modal">
+    <h3>📋 Copy Data for Sync</h3>
+    <p>Your data is shown below as JSON. Click "Copy to Clipboard" — or select all (Ctrl+A / Cmd+A) and copy manually — then open your other device and use Paste Sync.</p>
+    <textarea id="copy-textarea" readonly onclick="this.select()"></textarea>
+    <div class="sync-modal-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closeCopyModal()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+<!-- Paste Sync Modal -->
+<div class="sync-overlay" id="paste-modal">
+  <div class="sync-modal">
+    <h3>📥 Paste &amp; Sync Data</h3>
+    <p>Paste the JSON data you copied from your other device below. Only new entries will be added — existing ones won't be duplicated.</p>
+    <textarea id="paste-textarea" placeholder="Paste your JSON data here..."></textarea>
+    <div class="sync-modal-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closePasteModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="processPaste()">📥 Import Pasted Data</button>
+    </div>
+  </div>
+</div>
 </body>
-</html>
