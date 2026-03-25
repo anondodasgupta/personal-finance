@@ -282,16 +282,7 @@ table tr:hover td{background:#f9f6ee;}
 }
 @media(max-width:380px){.kpi-row{grid-template-columns:1fr;}}
 
-/* ── SYNC MODALS ── */
-.sync-overlay{display:none;position:fixed;inset:0;background:rgba(26,26,46,.65);z-index:300;align-items:flex-end;justify-content:center;}
-.sync-overlay.open{display:flex;}
-.sync-modal{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:20px 18px;animation:slideUp .25s ease;padding-bottom:max(env(safe-area-inset-bottom),16px);}
-@media(min-width:600px){.sync-modal{border-radius:var(--r);margin:auto;}}
-.sync-modal h3{font-family:'Fraunces',serif;font-size:15px;color:var(--deep);margin-bottom:7px;}
-.sync-modal p{font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
-.sync-modal textarea{width:100%;height:130px;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;font-family:monospace;font-size:11px;resize:vertical;outline:none;background:#fafaf6;color:var(--text);}
-.sync-modal textarea:focus{border-color:var(--deep);}
-.sync-modal-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:11px;flex-wrap:wrap;}
+
 </style>
 </head>
 <body>
@@ -337,11 +328,9 @@ table tr:hover td{background:#f9f6ee;}
       </div>
       <div class="trading-grid" id="trading-grid"></div>
       <div class="data-bar" style="margin-top:8px;">
-        <div class="data-bar-info"><strong>💾 Data</strong> stored locally. Export to back up.</div>
+        <div class="data-bar-info"><strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
         <div class="data-bar-btns">
-          <button class="btn btn-secondary btn-sm" onclick="openCopyModal()" title="Copy all data to clipboard for syncing">📋 Copy</button>
-        <button class="btn btn-secondary btn-sm" onclick="openPasteModal()" title="Paste data copied on another device">📥 Paste Sync</button>
-        <button class="btn btn-secondary btn-sm" onclick="exportData()">↓ Export</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportData()">↓ Export</button>
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">↑ Import</button>
           <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(event)">
         </div>
@@ -1564,77 +1553,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderIncome();
   switchTab('trading');
 });
-
-// -- CLIPBOARD SYNC --
-// -- CLIPBOARD SYNC (modal-based) --
-function openCopyModal() {
-  const raw = localStorage.getItem('income_register_v1');
-  if (!raw) { showToast('No data to copy.', 'error'); return; }
-  document.getElementById('copy-textarea').value = raw;
-  document.getElementById('copy-modal').classList.add('open');
-  setTimeout(() => document.getElementById('copy-textarea').select(), 100);
-}
-function closeCopyModal() { document.getElementById('copy-modal').classList.remove('open'); }
-function copyToClipboard() {
-  const ta = document.getElementById('copy-textarea');
-  ta.select();
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(ta.value)
-        .then(() => { showToast('✅ Copied to clipboard!', 'success'); closeCopyModal(); })
-        .catch(() => { document.execCommand('copy'); showToast('✅ Copied!', 'success'); closeCopyModal(); });
-    } else {
-      document.execCommand('copy');
-      showToast('✅ Copied!', 'success');
-      closeCopyModal();
-    }
-  } catch { showToast('⚠️ Auto-copy failed — select all (Ctrl+A) and copy manually (Ctrl+C).', 'error'); }
-}
-function openPasteModal() {
-  document.getElementById('paste-textarea').value = '';
-  document.getElementById('paste-modal').classList.add('open');
-  setTimeout(() => document.getElementById('paste-textarea').focus(), 100);
-}
-function closePasteModal() { document.getElementById('paste-modal').classList.remove('open'); }
-function processPaste() {
-  const text = document.getElementById('paste-textarea').value.trim();
-  if (!text) { showToast('⚠️ Nothing to import — paste your JSON data first.', 'error'); return; }
-  try {
-    const obj = JSON.parse(text);
-    let added = 0;
-    if (Array.isArray(obj.trading))   { obj.trading.forEach(t   => { if (!D.trading.find(x=>x.id===t.id))   { D.trading.push(t);   added++; } }); }
-    if (Array.isArray(obj.dividends)) { obj.dividends.forEach(d => { if (!D.dividends.find(x=>x.id===d.id)) { D.dividends.push(d); added++; } }); }
-    if (Array.isArray(obj.other))     { obj.other.forEach(o     => { if (!D.other.find(x=>x.id===o.id))     { D.other.push(o);     added++; } }); }
-    if (Array.isArray(obj.brokers)   && obj.brokers.length)   D.brokers   = obj.brokers;
-    if (Array.isArray(obj.tradeCats) && obj.tradeCats.length) D.tradeCats = obj.tradeCats;
-    save(); renderIncome(); closePasteModal();
-    showToast('✅ Synced ' + added + ' entr' + (added!==1?'ies':'y') + '!', 'success');
-  } catch(e) { showToast('❌ Invalid data — paste valid JSON from the Copy Sync function.', 'error'); }
-}
 </script>
-<!-- Copy Sync Modal -->
-<div class="sync-overlay" id="copy-modal">
-  <div class="sync-modal">
-    <h3>📋 Copy Data for Sync</h3>
-    <p>Your data is shown below as JSON. Click "Copy to Clipboard" — or select all (Ctrl+A / Cmd+A) and copy manually — then open your other device and use Paste Sync.</p>
-    <textarea id="copy-textarea" readonly onclick="this.select()"></textarea>
-    <div class="sync-modal-actions">
-      <button class="btn btn-secondary btn-sm" onclick="closeCopyModal()">Close</button>
-      <button class="btn btn-primary btn-sm" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
-    </div>
-  </div>
-</div>
-<!-- Paste Sync Modal -->
-<div class="sync-overlay" id="paste-modal">
-  <div class="sync-modal">
-    <h3>📥 Paste &amp; Sync Data</h3>
-    <p>Paste the JSON data you copied from your other device below. Only new entries will be added — existing ones won't be duplicated.</p>
-    <textarea id="paste-textarea" placeholder="Paste your JSON data here..."></textarea>
-    <div class="sync-modal-actions">
-      <button class="btn btn-secondary btn-sm" onclick="closePasteModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="processPaste()">📥 Import Pasted Data</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
