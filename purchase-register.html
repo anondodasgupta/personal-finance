@@ -812,6 +812,29 @@ function renderBills() {
   el.innerHTML = html;
 }
 
+function newBill() {
+  populatePaymentSelects();
+  document.getElementById('edit-bill-id').value = '';
+  document.getElementById('e-shop').value = '';
+  document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('e-payment').selectedIndex = 0;
+  document.getElementById('e-invoice').value = '';
+  document.getElementById('e-notes').value = '';
+  document.getElementById('e-pay-other').value = '';
+  document.getElementById('pay-other-row').classList.remove('show');
+  document.getElementById('e-payment2').value = '';
+  document.getElementById('e-amt2').value = '';
+  document.getElementById('e-amt2-wrap').style.display = 'none';
+  document.getElementById('pay-other2-row').style.display = 'none';
+  document.getElementById('e-pay-other2').value = '';
+  document.getElementById('e-split-info').style.display = 'none';
+  curItems = [];
+  document.getElementById('entry-title').textContent = 'New Purchase Bill';
+  document.getElementById('entry-subtitle').textContent = 'Fill details and add items';
+  renderEntryItems();
+  showPage('entry');
+}
+
 function editBill(id) {
   var b = D.bills.find(function(x){ return x.id === id; });
   if (!b) return;
