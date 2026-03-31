@@ -530,14 +530,28 @@ table tr:hover td{background:#fdf9f2;}
         <div class="fg"><label>Month</label>
           <select id="sch-month" onchange="runSearch()">
             <option value="">All months</option>
-            ${['January','February','March','April','May','June','July','August','September','October','November','December'].map((m,i)=>`<option value="${i}">${m}</option>`).join('')}
+            <option value="0">January</option>
+            <option value="1">February</option>
+            <option value="2">March</option>
+            <option value="3">April</option>
+            <option value="4">May</option>
+            <option value="5">June</option>
+            <option value="6">July</option>
+            <option value="7">August</option>
+            <option value="8">September</option>
+            <option value="9">October</option>
+            <option value="10">November</option>
+            <option value="11">December</option>
           </select>
         </div>
-        <div class="fg"><label>Amount (₹)</label><input type="number" id="sch-amt" placeholder="Exact or min amount" oninput="runSearch()"></div>
+        <div class="fg"><label>Min Amount (&#8377;)</label><input type="number" id="sch-amt" placeholder="Min budget amount" oninput="runSearch()"></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div id="sch-count" style="font-size:11px;color:var(--muted);"></div>
-        <button class="btn btn-secondary btn-sm" onclick="clearSearch()">&#10005; Clear</button>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="sch-total" style="font-family:'Fraunces',serif;font-size:14px;font-weight:700;color:var(--burgundy);display:none;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="clearSearch()">&#10005; Clear</button>
+        </div>
       </div>
       <div id="sch-results" style="max-height:420px;overflow-y:auto;"></div>
     </div>
@@ -1208,7 +1222,16 @@ function renderBudget() {
   Object.keys(byCat).sort().forEach(cat => {
     const catItems = byCat[cat];
     const catBgt   = catItems.reduce((s,i)=>s+(i.budget||0),0);
-    const catAct   = catItems.reduce((s,i)=>{ const k=i.desc.trim().toLowerCase(); return s+(cat==='Credit Card Bills'?(actMap[k]||0):(fullActMap[k]||0)); },0);
+    const catAct   = catItems.reduce((s,i)=>{
+      const dk = i.desc.trim().toLowerCase();
+      const s1 = (i.source==='Other'&&i.sourceOther)?i.sourceOther:(i.source||'');
+      if (cat === 'Credit Card Bills') return s + (actMap[dk]||0);
+      if (dk === 'groceries & purchases' && s1) {
+        const pk = 'groceries & purchases (' + s1.toLowerCase() + ')';
+        return s + (fullActMap[pk] !== undefined ? (fullActMap[pk]||0) : (fullActMap[dk]||0));
+      }
+      return s + (fullActMap[dk]||0);
+    },0);
 
     html += `<div class="budget-table-wrap">
       <div class="bgt-header">
@@ -1220,13 +1243,23 @@ function renderBudget() {
       </div>`;
 
     catItems.forEach(it => {
-      const isCCBill = it.cat === 'Credit Card Bills';
-      const descKey  = it.desc.trim().toLowerCase();
+      const isCCBill  = it.cat === 'Credit Card Bills';
+      const descKey   = it.desc.trim().toLowerCase();
+      const src1      = (it.source==='Other'&&it.sourceOther)?it.sourceOther:(it.source||'');
+      // For "Groceries & Purchases" lines — look up per-source key in fullActMap.
+      // Falls back to generic key if per-source key not present.
+      const isGrocery = descKey === 'groceries & purchases';
+      const purSrcKey = isGrocery && src1 ? ('groceries & purchases (' + src1.toLowerCase() + ')') : '';
 
-      // CC bill items: budget = live CC bill total (auto-synced above, read-only display)
-      // Regular items: budget = stored amount (editable text input)
       let bgt = it.budget || 0;
-      let act = isCCBill ? (actMap[descKey]||0) : (fullActMap[descKey]||0);
+      let act;
+      if (isCCBill) {
+        act = actMap[descKey] || 0;
+      } else if (isGrocery && purSrcKey && fullActMap[purSrcKey] !== undefined) {
+        act = fullActMap[purSrcKey] || 0;
+      } else {
+        act = fullActMap[descKey] || 0;
+      }
 
       const vr  = bgt - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
@@ -1327,8 +1360,9 @@ function autoPopulate() {
   });
 
   // ── 2. Purchases — one budget line per payment source (CC or bank) ──
+  // Description is always "Groceries & Purchases" — source field distinguishes them.
   // Aggregate total spent per payment source across ALL purchase bills.
-  const purSrcMap = {}; // sourceName -> {amount, isCC}
+  const purSrcMap = {}; // sourceName -> amount
   purchases.forEach(b => {
     const tot = b.items.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
     const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || 'Other');
@@ -1342,23 +1376,25 @@ function autoPopulate() {
       purSrcMap[pm2] += a2;
     }
   });
-  // Create one budget line per source, named "Groceries & Purchases (SourceName)"
-  // so each can be tracked separately (CC vs bank, card planning)
+  // One grouped entry per source — all with desc "Groceries & Purchases"
+  // Use a combined key so multiple sources don't overwrite each other in grouped{}
   Object.entries(purSrcMap).forEach(([src, amt]) => {
     if (amt <= 0) return;
-    const descKey = Object.keys(purSrcMap).length === 1
-      ? 'Groceries & Purchases'
-      : 'Groceries & Purchases (' + src + ')';
-    grouped[descKey] = {desc:descKey, cat:'Groceries & Purchases',
+    const gKey = 'Groceries & Purchases||' + src; // internal grouping key only
+    grouped[gKey] = {desc:'Groceries & Purchases', cat:'Groceries & Purchases',
       amount:amt, source:src, sourceOther:'', source2:'', amt2:0, sourceOther2:'', notes:''};
   });
 
   // ── 3. Add new or UPDATE existing budget items ──
+  // Match on BOTH description AND source to correctly handle multiple Groceries lines
   let added = 0, updated = 0;
   Object.values(grouped).forEach(g => {
-    const match = existing.find(e => e.desc.toLowerCase() === g.desc.toLowerCase());
+    const match = existing.find(e =>
+      e.desc.toLowerCase() === g.desc.toLowerCase() &&
+      (e.source||'').toLowerCase() === (g.source||'').toLowerCase()
+    );
     if (match) {
-      // Update amount if it changed (auto-populate always refreshes to last month's actual)
+      // Update amount if it changed
       if (match.budget !== g.amount) {
         match.budget = g.amount;
         updated++;
@@ -2022,7 +2058,15 @@ function runSearch() {
 
   results.sort((a,b) => b.key.localeCompare(a.key));
 
+  const grandTotal = results.reduce((s,r) => s + (r.it.budget||0), 0);
   document.getElementById('sch-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+  const totEl = document.getElementById('sch-total');
+  if (results.length) {
+    totEl.textContent = 'Total: ₹' + grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    totEl.style.display = '';
+  } else {
+    totEl.style.display = 'none';
+  }
 
   if (!results.length) {
     document.getElementById('sch-results').innerHTML =

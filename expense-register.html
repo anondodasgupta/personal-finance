@@ -556,7 +556,10 @@ tfoot tr td{background:var(--ink)!important;color:var(--accent-lt)!important;fon
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div id="es-count" style="font-size:11px;color:var(--muted);"></div>
-        <button class="btn btn-secondary btn-sm" onclick="clearExpSearch()">&#10005; Clear</button>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="es-total" style="font-family:'Fraunces',serif;font-size:14px;font-weight:700;color:var(--teal);display:none;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="clearExpSearch()">&#10005; Clear</button>
+        </div>
       </div>
       <div id="es-results" style="max-height:420px;overflow-y:auto;"></div>
     </div>
@@ -1367,7 +1370,10 @@ function renderDashboard() {
           <tbody>
             ${data.map(e => {
               const pm = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'—');
-              return `<tr>
+              const clickAction = e.isPurchase
+                ? `openPurchaseForDate('${e.date}')`
+                : `closeExpDash();editExpense('${e.id}')`;
+              return `<tr style="cursor:pointer;" title="${e.isPurchase?'Open in Purchase Register':'Click to edit'}" onclick="${clickAction}">
                 <td>${fmtD(e.date)}</td>
                 <td style="font-weight:600;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                   ${e.isPurchase ? '🛒 ' : ''}${e.description}</td>
@@ -1474,6 +1480,11 @@ function showPage(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'expenses') renderExpenses();
 }
+// Helper: close dashboard and go to entry edit form
+function closeExpDash() {
+  // editExpense() calls showPage('entry') so nothing extra needed;
+  // this function is a no-op hook kept for clarity
+}
 
 // ══════════════════════════════════════════════════
 // INIT
@@ -1575,7 +1586,15 @@ function runExpSearch() {
 
   results.sort((a,b) => b.date.localeCompare(a.date));
 
+  const grandTotal = results.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
   document.getElementById('es-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+  const totEl = document.getElementById('es-total');
+  if (results.length) {
+    totEl.textContent = 'Total: ₹' + Math.abs(grandTotal).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}) + (grandTotal < 0 ? ' (net refund)' : '');
+    totEl.style.display = '';
+  } else {
+    totEl.style.display = 'none';
+  }
 
   if (!results.length) {
     document.getElementById('es-results').innerHTML =
