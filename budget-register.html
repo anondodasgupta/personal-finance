@@ -1886,17 +1886,17 @@ function renderDashboard() {
 
   el.innerHTML=`
     <div class="kpi-row">
-      <div class="kpi"><div class="kpi-lbl">Total Budgeted</div><div class="kpi-val">&#8377;${fmt(totBgt,0)}</div><div class="kpi-sub">${keys.length} month${keys.length!==1?'s':''}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Total Actual</div><div class="kpi-val" style="color:${totAct>totBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(totAct,0)}</div><div class="kpi-sub">from registers</div></div>
-      <div class="kpi"><div class="kpi-lbl">Variance</div><div class="kpi-val" style="color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'+':''}&#8377;${fmt(Math.abs(vr),0)}</div><div class="kpi-sub">${vr>=0?'Under':'Over'} budget</div></div>
-      <div class="kpi"><div class="kpi-lbl">Avg Monthly</div><div class="kpi-val">&#8377;${fmt(totBgt/keys.length,0)}</div><div class="kpi-sub">per month</div></div>
+      <div class="kpi"><div class="kpi-lbl">Total Budgeted</div><div class="kpi-val">&#8377;${fmt(totBgt,2)}</div><div class="kpi-sub">${keys.length} month${keys.length!==1?'s':''}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Total Actual</div><div class="kpi-val" style="color:${totAct>totBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(totAct,2)}</div><div class="kpi-sub">from registers</div></div>
+      <div class="kpi"><div class="kpi-lbl">Variance</div><div class="kpi-val" style="color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'+':''}&#8377;${fmt(Math.abs(vr),2)}</div><div class="kpi-sub">${vr>=0?'Under':'Over'} budget</div></div>
+      <div class="kpi"><div class="kpi-lbl">Avg Monthly</div><div class="kpi-val">&#8377;${fmt(totBgt/keys.length,2)}</div><div class="kpi-sub">per month</div></div>
     </div>
     <div style="background:linear-gradient(135deg,var(--burgundy),var(--wine));border-radius:var(--r);padding:12px 16px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div>
         <div style="font-family:'Fraunces',serif;font-size:13px;color:var(--gold-lt);">&#128179; Total CC Bills Due (period)</div>
         <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">Standalone — not included in Budgeted / Actual totals above</div>
       </div>
-      <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--gold-lt);">&#8377;${fmt(totCCBills,0)}</div>
+      <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--gold-lt);">&#8377;${fmt(totCCBills,2)}</div>
     </div>
     <div class="chart-card full" style="margin-bottom:11px;">
       <div class="chart-ttl">&#128197; Monthly Budget vs Actual (&#8377;)</div>
@@ -1912,12 +1912,12 @@ function renderDashboard() {
         <thead><tr><th>Month</th><th style="text-align:right;">Budgeted</th><th style="text-align:right;">Actual</th><th style="text-align:right;">Variance</th><th>Status</th></tr></thead>
         <tbody>${mData.map(d=>{const v=d.bgt-d.act;return`<tr>
           <td style="font-weight:600;">${MONTHS[d.month]} ${d.year}</td>
-          <td style="text-align:right;">&#8377;${fmt(d.bgt,0)}</td>
-          <td style="text-align:right;color:${d.act>d.bgt?'var(--red)':'var(--green)'};">&#8377;${fmt(d.act,0)}</td>
-          <td style="text-align:right;font-weight:700;color:${v>=0?'var(--green)':'var(--red)'};">${v>=0?'+':''}&#8377;${fmt(Math.abs(v),0)}</td>
+          <td style="text-align:right;">&#8377;${fmt(d.bgt,2)}</td>
+          <td style="text-align:right;color:${d.act>d.bgt?'var(--red)':'var(--green)'};">&#8377;${fmt(d.act,2)}</td>
+          <td style="text-align:right;font-weight:700;color:${v>=0?'var(--green)':'var(--red)'};">${v>=0?'+':''}&#8377;${fmt(Math.abs(v),2)}</td>
           <td><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${v>=0?'var(--green-lt)':'var(--red-lt)'};color:${v>=0?'var(--green)':'var(--red)'};">${v>=0?'Under':'Over'}</span></td>
         </tr>`;}).join('')}</tbody>
-        <tfoot><tr class="tfoot-row"><td>TOTALS</td><td style="text-align:right;">&#8377;${fmt(totBgt,0)}</td><td style="text-align:right;">&#8377;${fmt(totAct,0)}</td><td style="text-align:right;">${vr>=0?'+':''}&#8377;${fmt(Math.abs(vr),0)}</td><td></td></tr></tfoot>
+        <tfoot><tr class="tfoot-row"><td>TOTALS</td><td style="text-align:right;">&#8377;${fmt(totBgt,2)}</td><td style="text-align:right;">&#8377;${fmt(totAct,2)}</td><td style="text-align:right;">${vr>=0?'+':''}&#8377;${fmt(Math.abs(vr),2)}</td><td></td></tr></tfoot>
       </table></div>
     </div>
     <div class="tbl-card">
@@ -1926,9 +1926,9 @@ function renderDashboard() {
         <thead><tr><th>Category</th><th style="text-align:right;">Budgeted</th><th style="text-align:right;">Actual</th><th style="text-align:right;">Variance</th><th style="text-align:right;">Used %</th></tr></thead>
         <tbody>${cats.map(c=>{const b=catBgt[c]||0,a=catAct[c]||0,v=b-a,u=b>0?Math.round(a/b*100):0;return`<tr>
           <td style="font-weight:600;">${esc(c)}</td>
-          <td style="text-align:right;">&#8377;${fmt(b,0)}</td>
-          <td style="text-align:right;color:${a>b?'var(--red)':'var(--green)'};">&#8377;${fmt(a,0)}</td>
-          <td style="text-align:right;font-weight:700;color:${v>=0?'var(--green)':'var(--red)'};">${v>=0?'+':''}&#8377;${fmt(Math.abs(v),0)}</td>
+          <td style="text-align:right;">&#8377;${fmt(b,2)}</td>
+          <td style="text-align:right;color:${a>b?'var(--red)':'var(--green)'};">&#8377;${fmt(a,2)}</td>
+          <td style="text-align:right;font-weight:700;color:${v>=0?'var(--green)':'var(--red)'};">${v>=0?'+':''}&#8377;${fmt(Math.abs(v),2)}</td>
           <td style="text-align:right;"><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${u>100?'var(--red-lt)':u>80?'var(--amber-lt)':'var(--green-lt)'};color:${u>100?'var(--red)':u>80?'var(--amber)':'var(--green)'};">${u}%</span></td>
         </tr>`;}).join('')}</tbody>
       </table></div>
