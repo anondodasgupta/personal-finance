@@ -1283,7 +1283,7 @@ function renderBudget() {
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
           <button class="btn-icon" onclick="openEdit('${key}','${it.id}')">&#9998;</button>
-          <button class="btn-icon del" onclick="openDel('${key}','${it.id}','${escQ(it.desc)}')">&#128465;</button>
+          <button class="btn-icon del" data-key="${escQ(key)}" data-id="${escQ(it.id)}" onclick="openDelById(this)">&#128465;</button>
         </div>
       </div>`;
     });
@@ -1521,6 +1521,17 @@ function saveEditItem() {
 function openDel(key, id, label) {
   pendingDel = {key,id};
   document.getElementById('del-msg').textContent = 'Remove "'+label+'" from budget? Cannot be undone.';
+  document.getElementById('del-modal').classList.add('open');
+}
+// Safe version: reads key+id from data attributes, looks up desc from data store
+// Avoids inline string escaping issues with apostrophes in descriptions
+function openDelById(btn) {
+  const key = btn.getAttribute('data-key');
+  const id  = btn.getAttribute('data-id');
+  const it  = (D.budgets[key]||[]).find(i=>i.id===id);
+  if (!it) return;
+  pendingDel = {key, id};
+  document.getElementById('del-msg').textContent = 'Remove "'+it.desc+'" from budget? Cannot be undone.';
   document.getElementById('del-modal').classList.add('open');
 }
 function confirmDel() {
