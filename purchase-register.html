@@ -1740,7 +1740,7 @@ function openSearchModal() {
   years.forEach(function(y){ var o=document.createElement('option');o.value=y;o.textContent=y;yrSel.appendChild(o); });
 
   // Clear fields
-  ['ps-item','ps-amt-min','ps-amt-max','ps-date'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['ps-item','ps-amt-min','ps-date'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('ps-month').value = '';
   document.getElementById('ps-modal').classList.add('open');
   runPurchaseSearch();
@@ -1748,7 +1748,7 @@ function openSearchModal() {
 }
 
 function clearPurchaseSearch() {
-  ['ps-item','ps-cat','ps-shop','ps-pay','ps-year','ps-month','ps-amt-min','ps-amt-max','ps-date'].forEach(function(id){
+  ['ps-item','ps-cat','ps-shop','ps-pay','ps-year','ps-month','ps-amt-min','ps-date'].forEach(function(id){
     document.getElementById(id).value = '';
   });
   runPurchaseSearch();
@@ -1763,7 +1763,6 @@ function runPurchaseSearch() {
   var monthQ = document.getElementById('ps-month').value;
   var dateQ  = document.getElementById('ps-date').value;
   var amtMin = parseFloat(document.getElementById('ps-amt-min').value) || 0;
-  var amtMax = parseFloat(document.getElementById('ps-amt-max').value) || Infinity;
 
   var results = [];
   D.bills.forEach(function(b) {
@@ -1779,7 +1778,7 @@ function runPurchaseSearch() {
     b.items.forEach(function(i) {
       if (itemQ && i.itemName.toLowerCase().indexOf(itemQ) === -1) return;
       if (catQ  && i.category !== catQ) return;
-      if (i.amount < amtMin || i.amount > amtMax) return;
+      if (i.amount < amtMin) return;
       results.push({bill:b, item:i, pm1:pm1, pm2:pm2});
     });
   });
