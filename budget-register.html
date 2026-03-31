@@ -1056,12 +1056,25 @@ function renderBudget() {
 
   if (items.length) {
     // ── 1. Credit Cards group ──
-    // Budget = previous month's actual CC spending per card (planning reference)
-    // Actual = current month's CC spending per card so far
-    let srcM = curMonth - 1, srcY = curYear;
-    if (srcM < 0) { srcM = 11; srcY--; }
-    const ccBudgetMap = getCCChargesForMonth(srcY, srcM);   // prev month charges
+    // Budget = sum of all budget items (excl. CC Bill category) whose payment source is each CC card
+    // Actual = current month's CC spending per card so far (live from registers)
     const ccActualMap = getCCChargesForMonth(curYear, curMonth); // cur month charges so far
+
+    // Build ccBudgetMap by summing budget items paid by each CC card
+    const ccBudgetMap = {};
+    D.ccCards.forEach(c => { ccBudgetMap[c.name] = 0; });
+    items.filter(it => it.cat !== 'Credit Card Bills').forEach(it => {
+      const s1 = (it.source==='Other'&&it.sourceOther) ? it.sourceOther : (it.source||'');
+      const s2 = it.source2 ? ((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2) : '';
+      const a2 = (it.source2 && it.amt2) ? (parseFloat(it.amt2)||0) : 0;
+      const b  = it.budget || 0;
+      if (CC_NAMES.has(s1)) {
+        ccBudgetMap[s1] = (ccBudgetMap[s1]||0) + (s2 ? b - a2 : b);
+      }
+      if (s2 && CC_NAMES.has(s2)) {
+        ccBudgetMap[s2] = (ccBudgetMap[s2]||0) + a2;
+      }
+    });
 
     // ── 2. Bank / UPI / Other groups ──
     // Budget = budget items whose PRIMARY or SECONDARY source is a bank/cash (not CC)
@@ -1121,11 +1134,11 @@ function renderBudget() {
     // Column header row
     let srcHtml = `<div class="source-summary-title">
       <span>&#128179; Outflow Summary</span>
-      <span style="font-size:11px;color:var(--muted);">Prev Month Spend vs This Month Actual</span>
+      <span style="font-size:11px;color:var(--muted);">Budgeted vs This Month Actual</span>
     </div>
     <div class="source-row hdr-row">
       <div>Source</div>
-      <div style="text-align:right;">Prev Month (&#8377;)</div>
+      <div style="text-align:right;">Budgeted (&#8377;)</div>
       <div style="text-align:right;">This Month (&#8377;)</div>
       <div style="text-align:right;">Variance</div>
     </div>`;
@@ -1847,7 +1860,7 @@ function renderDashboard() {
     return;
   }
 
-  let totBgt=0,totAct=0;
+  let totBgt=0,totAct=0,totCCBills=0;
   const catBgt={},catAct={};
   const mData = keys.map(k=>{
     const[y,m]=k.split('-');
@@ -1856,9 +1869,11 @@ function renderDashboard() {
     const actMap=getActualsForMonth(year,month);
     // Exclude CC bill items from KPI/variance totals (they duplicate underlying expenses)
     const expItems = items.filter(i=>i.cat!=='Credit Card Bills');
+    const ccItems  = items.filter(i=>i.cat==='Credit Card Bills');
     const bgt=expItems.reduce((s,i)=>s+(i.budget||0),0);
     const act=expItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
-    totBgt+=bgt; totAct+=act;
+    const ccBillsTotal=ccItems.reduce((s,i)=>s+(i.budget||0),0);
+    totBgt+=bgt; totAct+=act; totCCBills+=ccBillsTotal;
     // Category breakdown: all items except CC bills
     expItems.forEach(i=>{
       catBgt[i.cat]=(catBgt[i.cat]||0)+(i.budget||0);
@@ -1875,6 +1890,13 @@ function renderDashboard() {
       <div class="kpi"><div class="kpi-lbl">Total Actual</div><div class="kpi-val" style="color:${totAct>totBgt?'var(--red)':'var(--green)'};">&#8377;${fmt(totAct,0)}</div><div class="kpi-sub">from registers</div></div>
       <div class="kpi"><div class="kpi-lbl">Variance</div><div class="kpi-val" style="color:${vr>=0?'var(--green)':'var(--red)'};">${vr>=0?'+':''}&#8377;${fmt(Math.abs(vr),0)}</div><div class="kpi-sub">${vr>=0?'Under':'Over'} budget</div></div>
       <div class="kpi"><div class="kpi-lbl">Avg Monthly</div><div class="kpi-val">&#8377;${fmt(totBgt/keys.length,0)}</div><div class="kpi-sub">per month</div></div>
+    </div>
+    <div style="background:linear-gradient(135deg,var(--burgundy),var(--wine));border-radius:var(--r);padding:12px 16px;margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Fraunces',serif;font-size:13px;color:var(--gold-lt);">&#128179; Total CC Bills Due (period)</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">Standalone — not included in Budgeted / Actual totals above</div>
+      </div>
+      <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--gold-lt);">&#8377;${fmt(totCCBills,0)}</div>
     </div>
     <div class="chart-card full" style="margin-bottom:11px;">
       <div class="chart-ttl">&#128197; Monthly Budget vs Actual (&#8377;)</div>
