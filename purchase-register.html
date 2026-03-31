@@ -234,7 +234,13 @@ tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;fo
   .filter-group{min-width:calc(50% - 8px);}
 }
 @media(max-width:360px){.kpi-row{grid-template-columns:1fr;}}
-
+/* Search result rows */
+.ps-result-row{background:#fafaf6;border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;}
+.ps-result-row:hover{background:#f5f0e2;border-color:var(--gold);transform:translateY(-1px);box-shadow:var(--shadow);}
+.ps-result-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.ps-result-name{font-weight:700;font-size:13px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ps-result-amt{font-family:'Fraunces',serif;font-size:14px;font-weight:700;color:var(--forest);white-space:nowrap;}
+.ps-result-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:10px;color:var(--muted);}
 
 </style>
 </head>
@@ -253,6 +259,7 @@ tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;fo
     <button class="nav-btn" onclick="openCatMgr()">&#9881; Categories</button>
     <button class="nav-btn" onclick="openShopMgr()">&#127978; Shops</button>
     <button class="nav-btn" onclick="openPayMgr()">&#128179; Payments</button>
+    <button class="nav-btn" onclick="openSearchModal()">&#128269; Search</button>
   </nav>
 </header>
 
@@ -504,6 +511,50 @@ tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;fo
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeDelModal()" style="flex:1;">Cancel</button>
       <button class="btn btn-danger" onclick="confirmDel()" style="flex:1;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SEARCH MODAL ════ -->
+<div class="modal-overlay" id="ps-modal" onclick="if(event.target===this)closeSearch()">
+  <div class="modal" style="border-radius:var(--r);margin:auto;max-width:660px;max-height:90vh;">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>&#128269; Detail Search — Purchases</h3>
+      <button class="modal-close" onclick="closeSearch()">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="fg"><label>Item Name</label><input type="text" id="ps-item" placeholder="e.g. Banana, Milk…" oninput="runPurchaseSearch()"></div>
+        <div class="fg"><label>Category</label>
+          <select id="ps-cat" onchange="runPurchaseSearch()"><option value="">All categories</option></select>
+        </div>
+        <div class="fg"><label>Shop</label>
+          <select id="ps-shop" onchange="runPurchaseSearch()"><option value="">All shops</option></select>
+        </div>
+        <div class="fg"><label>Year</label>
+          <select id="ps-year" onchange="runPurchaseSearch()"><option value="">All years</option></select>
+        </div>
+        <div class="fg"><label>Month</label>
+          <select id="ps-month" onchange="runPurchaseSearch()">
+            <option value="">All months</option>
+            <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+            <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+            <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+            <option value="9">October</option><option value="10">November</option><option value="11">December</option>
+          </select>
+        </div>
+        <div class="fg"><label>Exact Date</label><input type="date" id="ps-date" oninput="runPurchaseSearch()"></div>
+        <div class="fg"><label>Primary Payment</label>
+          <select id="ps-pay" onchange="runPurchaseSearch()"><option value="">All methods</option></select>
+        </div>
+        <div class="fg"><label>Min Amount (₹)</label><input type="number" id="ps-amt-min" placeholder="0" oninput="runPurchaseSearch()"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div id="ps-count" style="font-size:11px;color:var(--muted);"></div>
+        <button class="btn btn-secondary btn-sm" onclick="clearPurchaseSearch()">&#10005; Clear</button>
+      </div>
+      <div id="ps-results" style="max-height:400px;overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -794,7 +845,7 @@ function renderBills() {
     var pmDisplay = pm + (pm2 ? ' + ' + pm2 : '');
     var catHtml = cats.slice(0,4).map(catBadge).join('');
     if (cats.length > 4) catHtml += '<span style="font-size:10px;color:var(--muted);align-self:center;">+' + (cats.length-4) + ' more</span>';
-    html += '<div class="bill-card">';
+    html += '<div class="bill-card" data-bill-id="' + b.id + '">';
     html += '<div class="bill-card-body" onclick="editBill(\'' + b.id + '\')">';
     html += '<div class="bill-card-top"><div class="bill-shop">&#127978; ' + b.shop + '</div><div class="bill-amt">&#8377;' + fmt(tot) + '</div></div>';
     html += '<div class="bill-meta"><span>&#128197; ' + fmtD(b.date) + '</span><span>&#128179; ' + pmDisplay + '</span>';
@@ -1339,7 +1390,7 @@ function allItems() {
       if (cat !== 'all' && i.category !== cat) return;
       if (itm !== 'all' && i.itemName !== itm) return;
       if (brnd !== 'all' && i.brand !== brnd) return;
-      result.push(Object.assign({}, i, {billDate: b.date, shop: b.shop, paymentMethod: b.paymentMethod, paymentOther: b.paymentOther||'', paymentMethod2: b.paymentMethod2||'', paymentAmt2: b.paymentAmt2||null}));
+      result.push(Object.assign({}, i, {billDate: b.date, billId: b.id, shop: b.shop, paymentMethod: b.paymentMethod, paymentOther: b.paymentOther||'', paymentMethod2: b.paymentMethod2||'', paymentAmt2: b.paymentAmt2||null}));
     });
   });
   return result;
@@ -1455,13 +1506,13 @@ function renderDash() {
   var mLabels = mKeys.map(function(k){ var p=k.split('-'); return MONTHS[parseInt(p[1])-1].substr(0,3)+' '+p[0].substr(2); });
   var mVals = mKeys.map(function(k){ return monthMap[k]; });
 
-  // Item summary
+  // Item summary — key by itemName + brand + UOM so same item in different units appears as separate rows
   var iMap = {};
   items.forEach(function(i){
-    var k = i.itemName + '|||' + (i.brand||'');
+    var k = i.itemName + '|||' + (i.brand||'') + '|||' + (i.uom||'');
     if (!iMap[k]) iMap[k] = {itemName:i.itemName,brand:i.brand||'',category:i.category,count:0,totalQty:0,uom:i.uom,totalAmt:0,history:[]};
     iMap[k].count++; iMap[k].totalQty += i.qty; iMap[k].totalAmt += i.amount;
-    iMap[k].history.push({date:i.billDate,shop:i.shop,qty:i.qty,amount:i.amount});
+    iMap[k].history.push({date:i.billDate,shop:i.shop,qty:i.qty,amount:i.amount,billId:i.billId||''});
   });
   var iSumm = Object.values(iMap).sort(function(a,b){ return b.totalAmt - a.totalAmt; });
 
@@ -1510,32 +1561,39 @@ function renderDash() {
   html += '<div class="tbl-hdr"><h3>' + (showHist?'Purchase History':'Item & Brand Summary') + '</h3><span>' + iSumm.length + ' rows</span></div>';
   html += '<div class="tbl-wrap"><table>';
   if (showHist) {
-    html += '<thead><tr><th>Date</th><th>Shop</th><th>Item</th><th>Brand</th><th>Qty</th><th>UOM</th><th>Amount (₹)</th><th>Unit Price (₹)</th></tr></thead><tbody>';
+    html += '<thead><tr><th>Date</th><th>Shop</th><th>Item</th><th>Brand</th><th>Qty</th><th>UOM</th><th>Amount (₹)</th><th>Unit Price (₹)</th><th></th></tr></thead><tbody>';
     var histRows = [];
     iSumm.forEach(function(s){
       s.history.forEach(function(h){ histRows.push(Object.assign({},h,{itemName:s.itemName,brand:s.brand,uom:s.uom})); });
     });
     histRows.sort(function(a,b){ return a.date.localeCompare(b.date); });
     histRows.forEach(function(h){
-      html += '<tr><td>' + fmtD(h.date) + '</td><td>' + h.shop + '</td><td>' + h.itemName + '</td><td>' + (h.brand||'—') + '</td>';
+      var bid = h.billId || '';
+      html += '<tr style="cursor:pointer;" title="Click to view this bill" onclick="goBill(\'' + bid + '\',\'' + h.date + '\')">';
+      html += '<td>' + fmtD(h.date) + '</td><td>' + h.shop + '</td><td>' + h.itemName + '</td><td>' + (h.brand||'—') + '</td>';
       html += '<td>' + h.qty + '</td><td>' + h.uom + '</td>';
       html += '<td style="text-align:right;">₹' + fmt(h.amount) + '</td>';
-      html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(h.amount/h.qty) + '</td></tr>';
+      html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(h.amount/h.qty) + '</td>';
+      html += '<td style="text-align:center;"><span style="font-size:14px;" title="View bill">🔗</span></td></tr>';
     });
     var totQty = items.reduce(function(s,i){ return s+i.qty; }, 0);
     html += '</tbody><tfoot><tr><td colspan="4">TOTALS / AVERAGE</td><td>' + totQty + '</td><td></td>';
     html += '<td style="text-align:right;">₹' + fmt(tot) + '</td>';
-    html += '<td style="text-align:right;">₹' + fmt(tot/totQty) + ' avg</td></tr></tfoot>';
+    html += '<td style="text-align:right;">₹' + fmt(tot/totQty) + ' avg</td><td></td></tr></tfoot>';
   } else {
     html += '<thead><tr><th>Item</th><th>Brand</th><th>Category</th><th>Purchases</th><th>Total Qty</th><th>UOM</th><th>Total (₹)</th><th>Avg Unit Price (₹)</th></tr></thead><tbody>';
     iSumm.forEach(function(s){
-      html += '<tr><td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + s.itemName + '</td>';
+      // Get all dates from history to link to first purchase date
+      var firstDate = s.history.length ? s.history.slice().sort(function(a,b){return a.date.localeCompare(b.date);})[0].date : '';
+      var firstBillId = s.history.length ? s.history.slice().sort(function(a,b){return a.date.localeCompare(b.date);})[0].billId||'' : '';
+      html += '<tr style="cursor:pointer;" title="Click to view purchase history for this item" onclick="drillItem(\'' + s.itemName.replace(/'/g,"\\'") + '\',\'' + (s.brand||'').replace(/'/g,"\\'") + '\')">';
+      html += '<td style="font-weight:600;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + s.itemName + ' <span style="font-size:9px;color:var(--muted);">(' + s.uom + ')</span></td>';
       html += '<td style="color:var(--muted);font-size:10px;">' + (s.brand||'—') + '</td>';
       html += '<td>' + catBadge(s.category) + '</td>';
       html += '<td style="text-align:center;">' + s.count + '</td>';
       html += '<td style="text-align:right;">' + s.totalQty + '</td><td>' + s.uom + '</td>';
       html += '<td style="text-align:right;font-weight:600;">₹' + fmt(s.totalAmt) + '</td>';
-      html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(s.totalAmt/s.totalQty) + '</td></tr>';
+      html += '<td style="text-align:right;font-weight:700;color:var(--green);">₹' + fmt(s.totalAmt/s.totalQty) + ' <span style="font-size:9px;color:var(--muted);">🔗</span></td></tr>';
     });
     html += '</tbody><tfoot><tr><td>TOTALS</td><td></td><td></td>';
     html += '<td style="text-align:center;">' + items.length + '</td><td></td><td></td>';
@@ -1601,6 +1659,156 @@ function showPage(name) {
   if (name === 'dashboard') { populateYears(); resetDash(); }
 }
 
+// ── DASHBOARD DRILL-DOWN NAVIGATION ────────────────────────────────────────
+// Go to the bills page and highlight a specific bill by id
+function goBill(billId, date) {
+  if (!billId && !date) return;
+  var d = new Date((date || '') + 'T00:00:00');
+  billsMonth = d.getMonth();
+  billsYear  = d.getFullYear();
+  showPage('bills');
+  setTimeout(function() {
+    var card = document.querySelector('[data-bill-id="' + billId + '"]');
+    if (card) {
+      card.style.outline = '3px solid var(--gold)';
+      card.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(function(){ card.style.outline = ''; }, 2500);
+    }
+  }, 200);
+}
+
+// Drill into a specific item by setting dashboard filters
+function drillItem(itemName, brand) {
+  document.getElementById('d-item').value = 'all';
+  document.getElementById('d-brand').value = 'all';
+  // Reset then filter
+  populateYears();
+  var pool = D.bills.flatMap ? D.bills.flatMap(function(b){ return b.items; }) :
+    [].concat.apply([], D.bills.map(function(b){ return b.items; }));
+  var cats = [], itms = [], brnds = [];
+  pool.forEach(function(i){
+    if (cats.indexOf(i.category) === -1) cats.push(i.category);
+    if (itms.indexOf(i.itemName) === -1) itms.push(i.itemName);
+    if (i.brand && brnds.indexOf(i.brand) === -1) brnds.push(i.brand);
+  });
+  cats.sort(); itms.sort(); brnds.sort();
+  rebuildSel('d-cat', cats, 'all');
+  rebuildSel('d-item', itms, itemName);
+  rebuildSel('d-brand', brnds, brand||'all');
+  document.getElementById('d-year').value = 'all';
+  document.getElementById('d-month').value = 'all';
+  renderDash();
+}
+
+// ── DETAIL SEARCH ──────────────────────────────────────────────────────────
+function openSearchModal() {
+  // Populate filter options
+  var catSel = document.getElementById('ps-cat');
+  catSel.innerHTML = '<option value="">All categories</option>';
+  D.categories.forEach(function(c) {
+    var o = document.createElement('option'); o.value = c.name; o.textContent = c.name; catSel.appendChild(o);
+  });
+
+  var shopSel = document.getElementById('ps-shop');
+  shopSel.innerHTML = '<option value="">All shops</option>';
+  D.shops.forEach(function(s) {
+    var o = document.createElement('option'); o.value = s; o.textContent = s; shopSel.appendChild(o);
+  });
+
+  var paySel = document.getElementById('ps-pay');
+  paySel.innerHTML = '<option value="">All payment methods</option>';
+  D.payments.forEach(function(p) {
+    var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; paySel.appendChild(o);
+  });
+
+  var yrSel = document.getElementById('ps-year');
+  yrSel.innerHTML = '<option value="">All years</option>';
+  var years = [];
+  D.bills.forEach(function(b){ var y = b.date.substr(0,4); if (years.indexOf(y)===-1) years.push(y); });
+  years.sort(function(a,b){return b-a;});
+  years.forEach(function(y){ var o=document.createElement('option');o.value=y;o.textContent=y;yrSel.appendChild(o); });
+
+  // Clear fields
+  ['ps-item','ps-amt-min','ps-amt-max','ps-date'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('ps-month').value = '';
+  document.getElementById('ps-modal').classList.add('open');
+  runPurchaseSearch();
+  setTimeout(function(){ document.getElementById('ps-item').focus(); }, 100);
+}
+
+function clearPurchaseSearch() {
+  ['ps-item','ps-cat','ps-shop','ps-pay','ps-year','ps-month','ps-amt-min','ps-amt-max','ps-date'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  runPurchaseSearch();
+}
+
+function runPurchaseSearch() {
+  var itemQ  = document.getElementById('ps-item').value.trim().toLowerCase();
+  var catQ   = document.getElementById('ps-cat').value;
+  var shopQ  = document.getElementById('ps-shop').value;
+  var payQ   = document.getElementById('ps-pay').value;
+  var yearQ  = document.getElementById('ps-year').value;
+  var monthQ = document.getElementById('ps-month').value;
+  var dateQ  = document.getElementById('ps-date').value;
+  var amtMin = parseFloat(document.getElementById('ps-amt-min').value) || 0;
+  var amtMax = parseFloat(document.getElementById('ps-amt-max').value) || Infinity;
+
+  var results = [];
+  D.bills.forEach(function(b) {
+    var d = new Date(b.date + 'T00:00:00');
+    if (yearQ  && d.getFullYear().toString() !== yearQ) return;
+    if (monthQ !== '' && d.getMonth() !== parseInt(monthQ)) return;
+    if (dateQ  && b.date !== dateQ) return;
+    if (shopQ  && b.shop !== shopQ) return;
+    var pm1 = (b.paymentMethod==='Other'&&b.paymentOther)?b.paymentOther:(b.paymentMethod||'');
+    var pm2 = b.paymentMethod2?((b.paymentMethod2==='Other'&&b.paymentOther2)?b.paymentOther2:b.paymentMethod2):'';
+    if (payQ && pm1 !== payQ && pm2 !== payQ) return;
+
+    b.items.forEach(function(i) {
+      if (itemQ && i.itemName.toLowerCase().indexOf(itemQ) === -1) return;
+      if (catQ  && i.category !== catQ) return;
+      if (i.amount < amtMin || i.amount > amtMax) return;
+      results.push({bill:b, item:i, pm1:pm1, pm2:pm2});
+    });
+  });
+
+  results.sort(function(a,b){ return b.bill.date.localeCompare(a.bill.date); });
+
+  document.getElementById('ps-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+
+  if (!results.length) {
+    document.getElementById('ps-results').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--muted);"><div style="font-size:36px;margin-bottom:8px;">🔍</div><p>No items match your search.</p></div>';
+    return;
+  }
+
+  var html = '';
+  results.forEach(function(r) {
+    var b = r.bill; var i = r.item;
+    var pmStr = r.pm1 + (r.pm2 ? ' + ' + r.pm2 : '');
+    html += '<div class="ps-result-row" onclick="closeSearch();goBill(\'' + b.id + '\',\'' + b.date + '\')">';
+    html += '<div class="ps-result-top">';
+    html += '<div class="ps-result-name">' + i.itemName + (i.brand?' <span style="font-size:10px;color:var(--muted);">' + i.brand + '</span>':'') + '</div>';
+    html += '<div class="ps-result-amt">₹' + fmt(i.amount) + '</div>';
+    html += '</div>';
+    html += '<div class="ps-result-meta">';
+    html += '<span>📅 ' + fmtD(b.date) + '</span>';
+    html += '<span>🏪 ' + b.shop + '</span>';
+    html += '<span>' + catBadge(i.category) + '</span>';
+    html += '<span>📦 ' + i.qty + ' ' + i.uom + '</span>';
+    html += '<span>💳 ' + pmStr + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:9px;color:var(--forest);margin-top:4px;font-weight:600;">🔗 Click to view &amp; edit bill</div>';
+    html += '</div>';
+  });
+  document.getElementById('ps-results').innerHTML = html;
+}
+
+function closeSearch() {
+  document.getElementById('ps-modal').classList.remove('open');
+}
+
 // ── EXPORT / IMPORT ────────────────────────────────────────────────────────
 function exportData() {
   if (!D.bills.length) { showToast('No data.', 'error'); return; }
@@ -1659,6 +1867,22 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
   if (window.location.search) checkUrl();
   else renderBills();
+
+  // When this tab saves data, budget register open in another tab will
+  // auto-receive the storage event and refresh its actuals instantly.
+  // Also refresh bills view if expense data changes in another tab (combined view).
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'expense_register_v1') {
+      var active = document.querySelector('.page.active');
+      if (active && active.id === 'page-bills') renderBills();
+    }
+  });
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      var active = document.querySelector('.page.active');
+      if (active && active.id === 'page-bills') renderBills();
+    }
+  });
 });
 </script>
 </body>

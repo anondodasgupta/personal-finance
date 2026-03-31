@@ -213,7 +213,16 @@ table tr:hover td{background:#fdf9f2;}
   .source-row{grid-template-columns:1.5fr 1fr 1fr 1fr;font-size:11px;}
 }
 @media(max-width:380px){.kpi-row{grid-template-columns:1fr;}.source-row{grid-template-columns:1fr 1fr;}}
-
+/* Search result rows */
+.sch-row{background:#fafaf6;border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:all .15s;}
+.sch-row:hover{background:#f5f0e8;border-color:var(--gold-lt);transform:translateY(-1px);box-shadow:var(--shadow);}
+.sch-row-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.sch-row-desc{font-weight:700;font-size:13px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sch-row-amt{font-family:'Fraunces',serif;font-size:14px;font-weight:700;color:var(--burgundy);white-space:nowrap;}
+.sch-row-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:10px;color:var(--muted);}
+.sch-row-meta span{display:flex;align-items:center;gap:3px;}
+.sch-no-results{text-align:center;padding:30px;color:var(--muted);}
+.sch-no-results .ei{font-size:36px;margin-bottom:8px;}
 
 </style>
 </head>
@@ -232,6 +241,7 @@ table tr:hover td{background:#fdf9f2;}
     <button class="nav-btn" onclick="openCatMgr()">&#9881; Categories</button>
     <button class="nav-btn" onclick="openPayMgr()">&#128179; Payments</button>
     <button class="nav-btn" onclick="openCCMgr()">&#128736; CC Settings</button>
+    <button class="nav-btn" onclick="openSearch()">&#128269; Search</button>
   </nav>
 </header>
 
@@ -497,6 +507,43 @@ table tr:hover td{background:#fdf9f2;}
   </div>
 </div>
 
+<!-- ════ SEARCH MODAL ════ -->
+<div class="modal-overlay" id="search-modal" onclick="if(event.target===this)closeModal('search-modal')">
+  <div class="modal" style="border-radius:var(--r);margin:auto;max-width:640px;max-height:90vh;">
+    <span class="modal-handle"></span>
+    <div class="modal-hdr">
+      <h3>&#128269; Detail Search — Budget Items</h3>
+      <button class="modal-close" onclick="closeModal('search-modal')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="fg"><label>Description / Item</label><input type="text" id="sch-desc" placeholder="e.g. Electricity, Loan…" oninput="runSearch()"></div>
+        <div class="fg"><label>Category</label>
+          <select id="sch-cat" onchange="runSearch()"><option value="">All categories</option></select>
+        </div>
+        <div class="fg"><label>Payment Source</label>
+          <select id="sch-pay" onchange="runSearch()"><option value="">All sources</option></select>
+        </div>
+        <div class="fg"><label>Year</label>
+          <select id="sch-year" onchange="runSearch()"><option value="">All years</option></select>
+        </div>
+        <div class="fg"><label>Month</label>
+          <select id="sch-month" onchange="runSearch()">
+            <option value="">All months</option>
+            ${['January','February','March','April','May','June','July','August','September','October','November','December'].map((m,i)=>`<option value="${i}">${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg"><label>Amount (₹)</label><input type="number" id="sch-amt" placeholder="Exact or min amount" oninput="runSearch()"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div id="sch-count" style="font-size:11px;color:var(--muted);"></div>
+        <button class="btn btn-secondary btn-sm" onclick="clearSearch()">&#10005; Clear</button>
+      </div>
+      <div id="sch-results" style="max-height:420px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
 // ══════════════════════════════════════════════════
@@ -670,8 +717,8 @@ function getCCChargesForMonth(year, month) {
 }
 
 // Only counts the direct-paid (non-CC) portion of each expense.
-// CC-paid amounts flow through the CC bill line item instead,
-// preventing CC charges from appearing as actuals in regular budget categories.
+// CC-paid amounts flow through the CC bill line item instead.
+// Also builds per-source purchase keys for "Groceries & Purchases (SourceName)" lines.
 function getActualsForMonth(year, month) {
   const prefix  = mk(year, month);
   const map     = {};
@@ -689,19 +736,27 @@ function getActualsForMonth(year, month) {
     }
   });
 
-  // Purchases — only non-CC portion
+  // Purchases — non-CC portion by source
   let purTotal = 0;
+  const purSrcActuals = {};
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
     const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || '');
     const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
-    const tot = b.items.reduce((s,i)=>s+i.amount,0);
-    const a2  = (pm2 && b.paymentAmt2) ? b.paymentAmt2 : 0;
+    const tot = b.items.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+    const a2  = (pm2 && b.paymentAmt2) ? parseFloat(b.paymentAmt2)||0 : 0;
     const a1  = tot - a2;
-    purTotal += (!ccNames.has(pm1) ? a1 : 0) + (pm2 && !ccNames.has(pm2) ? a2 : 0);
+    const d1  = !ccNames.has(pm1) ? a1 : 0;
+    const d2  = (pm2 && !ccNames.has(pm2)) ? a2 : 0;
+    purTotal += d1 + d2;
+    if (d1 > 0) purSrcActuals[pm1] = (purSrcActuals[pm1]||0) + d1;
+    if (d2 > 0) purSrcActuals[pm2] = (purSrcActuals[pm2]||0) + d2;
   });
   if (purTotal > 0) {
-    const k = 'groceries & purchases';
-    map[k] = (map[k]||0) + purTotal;
+    map['groceries & purchases'] = (map['groceries & purchases']||0) + purTotal;
+    Object.entries(purSrcActuals).forEach(([src, amt]) => {
+      const k = ('groceries & purchases (' + src + ')').toLowerCase();
+      map[k] = (map[k]||0) + amt;
+    });
   }
   return map;
 }
@@ -772,6 +827,7 @@ function getActualForItem(desc, year, month) {
 // Full actuals by description — includes CC-paid portions.
 // Used ONLY for the budget detail section rows (not for the Outflow Summary).
 // For CC Bill category items, use getActualsForMonth instead (bank payments for CC bills).
+// Also populates the purchase-by-source map for per-source Groceries lines.
 function getFullActualsForMonth(year, month) {
   const prefix = mk(year, month);
   const map = {};
@@ -781,14 +837,29 @@ function getFullActualsForMonth(year, month) {
     map[k] = (map[k]||0) + (parseFloat(e.amount)||0);
   });
 
-  // Purchases — full total regardless of payment method
+  // Purchases — full total AND per-source breakdown
+  // This supports both "Groceries & Purchases" (single line) and
+  // "Groceries & Purchases (SourceName)" (per-source lines from auto-populate)
   let purTotal = 0;
+  const purSrcActuals = {}; // sourceName -> actual spend this month
   getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
-    purTotal += b.items.reduce((s,i) => s + (parseFloat(i.amount)||0), 0);
+    const tot = b.items.reduce((s,i) => s + (parseFloat(i.amount)||0), 0);
+    purTotal += tot;
+    const pm1 = (b.paymentMethod==='Other'&&b.paymentOther)?b.paymentOther:(b.paymentMethod||'Other');
+    const pm2 = b.paymentMethod2?((b.paymentMethod2==='Other'&&b.paymentOther2)?b.paymentOther2:b.paymentMethod2):'';
+    const a2  = (pm2 && b.paymentAmt2) ? parseFloat(b.paymentAmt2)||0 : 0;
+    const a1  = tot - a2;
+    purSrcActuals[pm1] = (purSrcActuals[pm1]||0) + a1;
+    if (pm2) purSrcActuals[pm2] = (purSrcActuals[pm2]||0) + a2;
   });
   if (purTotal > 0) {
-    const k = 'groceries & purchases';
-    map[k] = (map[k]||0) + purTotal;
+    // Overall total under the generic key
+    map['groceries & purchases'] = (map['groceries & purchases']||0) + purTotal;
+    // Per-source keys for lines like "groceries & purchases (hdfc bank credit card)"
+    Object.entries(purSrcActuals).forEach(([src, amt]) => {
+      const perSrcKey = ('groceries & purchases (' + src + ')').toLowerCase();
+      map[perSrcKey] = (map[perSrcKey]||0) + amt;
+    });
   }
   return map;
 }
@@ -1238,9 +1309,10 @@ function autoPopulate() {
   const expenses = getExpenses().filter(e => e.date.startsWith(prevKey));
   const purchases= getPurchases().filter(b => b.date.startsWith(prevKey));
 
-  // Club ALL expenses by description — include CC-paid amounts too.
-  // CC-paid items need to appear in the detail section just like direct-paid items.
-  const grouped  = {};
+  // ── 1. Group expenses by description (full amount per payment method combo) ──
+  // Key: description (trimmed). We aggregate total amount across duplicate descriptions.
+  // Payment source taken from the first occurrence (most expenses have a single recurring source).
+  const grouped = {};
   expenses.forEach(e => {
     const pm1 = (e.paymentMethod === 'Other' && e.paymentOther) ? e.paymentOther : (e.paymentMethod || '');
     const pm2 = e.paymentMethod2 ? ((e.paymentMethod2 === 'Other' && e.paymentOther2) ? e.paymentOther2 : e.paymentMethod2) : '';
@@ -1250,48 +1322,70 @@ function autoPopulate() {
     const k = e.description.trim();
     if (!grouped[k]) grouped[k] = {desc:k, cat:e.category||'Other', amount:0,
       source:pm1||'Other', sourceOther:e.paymentOther||'',
-      source2:pm2||'', amt2:a2, sourceOther2:e.paymentOther2||''};
+      source2:pm2||'', amt2:a2, sourceOther2:e.paymentOther2||'', notes:''};
     grouped[k].amount += totalAmt;
   });
 
-  // Purchases — full amount including CC-paid portion
-  let purTot = 0;
+  // ── 2. Purchases — one budget line per payment source (CC or bank) ──
+  // Aggregate total spent per payment source across ALL purchase bills.
+  const purSrcMap = {}; // sourceName -> {amount, isCC}
   purchases.forEach(b => {
     const tot = b.items.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
-    purTot += tot;
+    const pm1 = (b.paymentMethod === 'Other' && b.paymentOther) ? b.paymentOther : (b.paymentMethod || 'Other');
+    const pm2 = b.paymentMethod2 ? ((b.paymentMethod2 === 'Other' && b.paymentOther2) ? b.paymentOther2 : b.paymentMethod2) : '';
+    const a2  = (pm2 && b.paymentAmt2) ? parseFloat(b.paymentAmt2)||0 : 0;
+    const a1  = tot - a2;
+    if (!purSrcMap[pm1]) purSrcMap[pm1] = 0;
+    purSrcMap[pm1] += a1;
+    if (pm2) {
+      if (!purSrcMap[pm2]) purSrcMap[pm2] = 0;
+      purSrcMap[pm2] += a2;
+    }
   });
-  if (purTot > 0) {
-    const pm = purchases[0]?.paymentMethod || 'Other';
-    const pmO = purchases[0]?.paymentOther || '';
-    const pm2 = purchases[0]?.paymentMethod2 || '';
-    const a2  = purchases[0]?.paymentAmt2 ? parseFloat(purchases[0].paymentAmt2)||0 : 0;
-    const pm2O = purchases[0]?.paymentOther2 || '';
-    grouped['Groceries & Purchases'] = {desc:'Groceries & Purchases',cat:'Groceries & Purchases',
-      amount:purTot, source:pm, sourceOther:pmO, source2:pm2, amt2:a2, sourceOther2:pm2O};
-  }
+  // Create one budget line per source, named "Groceries & Purchases (SourceName)"
+  // so each can be tracked separately (CC vs bank, card planning)
+  Object.entries(purSrcMap).forEach(([src, amt]) => {
+    if (amt <= 0) return;
+    const descKey = Object.keys(purSrcMap).length === 1
+      ? 'Groceries & Purchases'
+      : 'Groceries & Purchases (' + src + ')';
+    grouped[descKey] = {desc:descKey, cat:'Groceries & Purchases',
+      amount:amt, source:src, sourceOther:'', source2:'', amt2:0, sourceOther2:'', notes:''};
+  });
 
-  let added = 0;
+  // ── 3. Add new or UPDATE existing budget items ──
+  let added = 0, updated = 0;
   Object.values(grouped).forEach(g => {
-    if (!existing.some(e=>e.desc.toLowerCase()===g.desc.toLowerCase())) {
+    const match = existing.find(e => e.desc.toLowerCase() === g.desc.toLowerCase());
+    if (match) {
+      // Update amount if it changed (auto-populate always refreshes to last month's actual)
+      if (match.budget !== g.amount) {
+        match.budget = g.amount;
+        updated++;
+      }
+    } else {
       existing.push({id:gid(), desc:g.desc, cat:g.cat, budget:g.amount,
         source:g.source, sourceOther:g.sourceOther,
-        source2:g.source2, amt2:g.amt2, sourceOther2:g.sourceOther2, notes:''});
+        source2:g.source2, amt2:g.amt2, sourceOther2:g.sourceOther2, notes:g.notes||''});
       added++;
     }
   });
 
-  // CC bills DUE in this month
-  // For each card, compute what dispMonth (cycle-end month) would produce a due date in curMonth/curYear
-  // dueMonth = endMonth + dueOffset  →  endMonth = dueMonth - dueOffset
+  // ── 4. CC bills DUE in this month ──
   D.ccCards.forEach(card => {
-    // Work backwards: if due month is curMonth, what cycle-end month/year?
     let ceM = curMonth - card.dueOffset;
     let ceY = curYear;
     if (ceM < 0) { ceM += 12; ceY--; }
     const bill   = getCCBill(card, ceY, ceM);
     const ccDesc = card.name + ' Bill';
-    if (!existing.some(e=>e.desc.toLowerCase()===ccDesc.toLowerCase())) {
-      const dueStr = fmtDate(bill.duY, bill.duM, bill.duD);
+    const dueStr = fmtDate(bill.duY, bill.duM, bill.duD);
+    const match  = existing.find(e => e.desc.toLowerCase() === ccDesc.toLowerCase());
+    if (match) {
+      // CC bills are auto-synced on every render anyway, but update source/notes too
+      match.source = card.payFrom || match.source || 'Other';
+      match.notes  = bill.total>0 ? 'Due '+dueStr : 'No charges this cycle';
+      updated++;
+    } else {
       existing.push({id:gid(), desc:ccDesc, cat:'Credit Card Bills',
         budget:bill.total, source:card.payFrom||'Other', sourceOther:'',
         source2:'', amt2:0, sourceOther2:'',
@@ -1302,36 +1396,34 @@ function autoPopulate() {
 
   save(); renderBudget();
 
-  // Issue 6: Sync any new categories/payment methods encountered back to the managers
+  // ── 5. Sync new categories/payment methods to managers ──
   let syncedCats=0, syncedPays=0;
   existing.forEach(it => {
-    // Sync category
     if (it.cat && !D.categories.some(c=>c.toLowerCase()===it.cat.toLowerCase())) {
-      D.categories.push(it.cat);
-      syncedCats++;
+      D.categories.push(it.cat); syncedCats++;
     }
-    // Sync payment sources
     [it.source, it.source2].forEach(src => {
       if (!src || src==='Other' || src==='' || src==='— None —') return;
       if (!D.payments.some(p=>p.name.toLowerCase()===src.toLowerCase())) {
-        // Guess group
-        const isCC = D.ccCards.some(c=>c.name.toLowerCase()===src.toLowerCase());
+        const isCC   = D.ccCards.some(c=>c.name.toLowerCase()===src.toLowerCase());
         const isBank = ['Axis Bank','ICICI Bank','Yes Bank'].some(b=>b.toLowerCase()===src.toLowerCase());
-        const grp = isCC ? 'Credit Cards' : isBank ? 'Bank / UPI / Debit' : 'Other';
+        const grp    = isCC ? 'Credit Cards' : isBank ? 'Bank / UPI / Debit' : 'Other';
         D.payments.push({id:'p'+Date.now()+Math.random().toString(36).substr(2,4), group:grp, name:src});
         syncedPays++;
       }
     });
   });
   if (syncedCats || syncedPays) {
-    // Re-sort after sync
     D.categories.sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
-    D.payments.sort((a,b)=> a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
+    D.payments.sort((a,b)=>a.group===b.group?a.name.toLowerCase().localeCompare(b.name.toLowerCase()):0);
     save();
   }
 
-  if (added) toast('Added '+added+' item'+(added!==1?'s':'')+' from '+MONTHS[srcM]+' '+srcY+'.'+(syncedCats||syncedPays?' ('+((syncedCats?syncedCats+' cat':'')+(syncedPays?(syncedCats?', ':'')+syncedPays+' pay':''))+' synced)':''),'success');
-  else toast('All items already present for '+MONTHS[curMonth]+' '+curYear+'.','info');
+  const msg = [];
+  if (added)   msg.push(added+' added');
+  if (updated) msg.push(updated+' updated');
+  if (msg.length) toast('Auto-populate: '+msg.join(', ')+' (from '+MONTHS[srcM]+' '+srcY+').','success');
+  else toast('Nothing new to populate for '+MONTHS[curMonth]+' '+curYear+'.','info');
 }
 
 function clearBudget() {
@@ -1839,10 +1931,154 @@ function showPage(name) {
 // ══════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════
+function liveRefresh() {
+  // Re-read from localStorage and re-render the active page
+  // so budget actuals update the moment an expense/purchase is saved in another tab
+  const active = document.querySelector('.page.active');
+  if (!active) return;
+  if (active.id === 'page-budget')    renderBudget();
+  if (active.id === 'page-cc')        renderCC();
+  if (active.id === 'page-dashboard') renderDashboard();
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   loadData();
   renderBudget();
+
+  // Live update: re-render when expense or purchase data changes in any other tab
+  window.addEventListener('storage', e => {
+    if (e.key === EXP_SK || e.key === PUR_SK) liveRefresh();
+  });
+
+  // Live update: re-render when user switches back to this tab/window
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') liveRefresh();
+  });
+  window.addEventListener('focus', liveRefresh);
 });
+
+// ══════════════════════════════════════════════════
+// DETAIL SEARCH
+// ══════════════════════════════════════════════════
+function openSearch() {
+  // Populate filter dropdowns
+  const catSel = document.getElementById('sch-cat');
+  catSel.innerHTML = '<option value="">All categories</option>';
+  D.categories.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); });
+
+  const paySel = document.getElementById('sch-pay');
+  paySel.innerHTML = '<option value="">All sources</option>';
+  D.payments.forEach(p => { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name; paySel.appendChild(o); });
+
+  const yrSel = document.getElementById('sch-year');
+  yrSel.innerHTML = '<option value="">All years</option>';
+  const years = [...new Set(Object.keys(D.budgets).map(k => k.split('-')[0]))].sort((a,b)=>b-a);
+  years.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); });
+
+  // Pre-fill year/month to current budget view
+  yrSel.value = String(curYear);
+  document.getElementById('sch-month').value = String(curMonth);
+
+  document.getElementById('sch-desc').value = '';
+  document.getElementById('sch-amt').value  = '';
+  document.getElementById('search-modal').classList.add('open');
+  runSearch();
+  setTimeout(() => document.getElementById('sch-desc').focus(), 100);
+}
+
+function clearSearch() {
+  document.getElementById('sch-desc').value  = '';
+  document.getElementById('sch-cat').value   = '';
+  document.getElementById('sch-pay').value   = '';
+  document.getElementById('sch-year').value  = '';
+  document.getElementById('sch-month').value = '';
+  document.getElementById('sch-amt').value   = '';
+  runSearch();
+}
+
+function runSearch() {
+  const descQ  = document.getElementById('sch-desc').value.trim().toLowerCase();
+  const catQ   = document.getElementById('sch-cat').value;
+  const payQ   = document.getElementById('sch-pay').value;
+  const yearQ  = document.getElementById('sch-year').value;
+  const monthQ = document.getElementById('sch-month').value;
+  const amtQ   = parseFloat(document.getElementById('sch-amt').value) || 0;
+
+  const results = [];
+  Object.entries(D.budgets).forEach(([key, items]) => {
+    const [ky, km] = key.split('-');
+    if (yearQ  && ky !== yearQ) return;
+    if (monthQ !== '' && parseInt(km)-1 !== parseInt(monthQ)) return;
+    (items||[]).forEach(it => {
+      if (descQ && !it.desc.toLowerCase().includes(descQ)) return;
+      if (catQ  && it.cat !== catQ) return;
+      const s1 = (it.source==='Other'&&it.sourceOther)?it.sourceOther:(it.source||'');
+      const s2 = it.source2?((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2):'';
+      if (payQ && s1 !== payQ && s2 !== payQ) return;
+      if (amtQ && (it.budget||0) < amtQ) return;
+      results.push({key, it, ky, km: parseInt(km)-1});
+    });
+  });
+
+  results.sort((a,b) => b.key.localeCompare(a.key));
+
+  document.getElementById('sch-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+
+  if (!results.length) {
+    document.getElementById('sch-results').innerHTML =
+      '<div class="sch-no-results"><div class="ei">🔍</div><p>No budget items match your search.</p></div>';
+    return;
+  }
+
+  let html = '';
+  results.forEach(({key, it, ky, km}) => {
+    const s1 = (it.source==='Other'&&it.sourceOther)?it.sourceOther:(it.source||'—');
+    const s2 = it.source2?((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2):'';
+    const srcStr = s1 + (s2?' + '+s2:'');
+    const mLabel = MONTHS[km]+' '+ky;
+    const varC = it.cat==='Credit Card Bills'?'var(--blue)':'var(--burgundy)';
+    html += `<div class="sch-row" onclick="jumpToBudgetItem('${key}','${it.id}')">
+      <div class="sch-row-top">
+        <div class="sch-row-desc">${it.cat==='Credit Card Bills'?'💳 ':''}${esc(it.desc)}</div>
+        <div class="sch-row-amt" style="color:${varC};">₹${fmt(it.budget||0,2)}</div>
+      </div>
+      <div class="sch-row-meta">
+        <span>📅 ${mLabel}</span>
+        <span>🏷️ ${esc(it.cat)}</span>
+        <span>💳 ${esc(srcStr)}</span>
+        ${it.notes?`<span>📝 ${esc(it.notes)}</span>`:''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('sch-results').innerHTML = html;
+}
+
+function jumpToBudgetItem(key, id) {
+  // Navigate to the correct month/year and highlight the item
+  const [ky, km] = key.split('-');
+  curYear  = parseInt(ky);
+  curMonth = parseInt(km) - 1;
+  closeModal('search-modal');
+  // Show budget page
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-budget').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-budget').classList.add('active');
+  renderBudget();
+  // Highlight the row after render
+  setTimeout(() => {
+    const allRows = document.querySelectorAll('.bgt-row');
+    allRows.forEach(row => {
+      const editBtn = row.querySelector('[onclick*="'+id+'"]');
+      if (editBtn) {
+        row.style.background = '#fef9ec';
+        row.style.transition = 'background 1s';
+        row.scrollIntoView({behavior:'smooth', block:'center'});
+        setTimeout(() => { row.style.background = ''; }, 2500);
+      }
+    });
+  }, 150);
+}
 </script>
 </body>
 </html>
