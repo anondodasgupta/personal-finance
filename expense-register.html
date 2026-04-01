@@ -1495,11 +1495,11 @@ function closeExpDash() {
 // STORAGE USAGE CHECK
 // ══════════════════════════════════════════════════
 function checkStorageUsage() {
+  const SK = 'expense_register_v1';
   let total = 0;
-  for (let key in localStorage) {
-    if (localStorage.hasOwnProperty(key)) {
-      total += localStorage[key].length + key.length;
-    }
+  const data = localStorage.getItem(SK);
+  if (data) {
+    total = new Blob([data]).size;
   }
   const usedMB = (total / 1024 / 1024).toFixed(2);
   const limitMB = 10; // Chrome limit

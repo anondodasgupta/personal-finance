@@ -381,6 +381,7 @@ body::after {
     <div class="dt-pill">&#128197; <strong id="today-date">—</strong></div>
     <div class="dt-pill">&#128336; <strong id="today-time">—</strong></div>
     <div class="dt-pill">&#128200; <strong id="cur-month">—</strong></div>
+    <div class="dt-pill">💾 <strong id="total-storage">—</strong></div>
   </div>
 
   <!-- Registers -->
@@ -595,10 +596,35 @@ function getRegisterStorage(key) {
     if (!data) return '—';
     const sizeBytes = new Blob([data]).size;
     const sizeMB = (sizeBytes / 1024 / 1024).toFixed(2);
-    const sizePercent = ((sizeBytes / (10 * 1024 * 1024)) * 100).toFixed(0);
+    const sizePercent = ((sizeBytes / (10 * 1024 * 1024)) * 100).toFixed(1);
     return sizeMB + 'MB (' + sizePercent + '%)';
   } catch(e) {
     return '—';
+  }
+}
+
+function getTotalStorage() {
+  try {
+    const keys = ['expense_register_v1', 'purchase_register_v1', 'budget_register_v3', 'income_register_v1', 'electricity_bills_v1'];
+    let totalBytes = 0;
+    keys.forEach(key => {
+      const data = localStorage.getItem(key);
+      if (data) {
+        totalBytes += new Blob([data]).size;
+      }
+    });
+    const totalMB = (totalBytes / 1024 / 1024).toFixed(2);
+    const totalPercent = ((totalBytes / (10 * 1024 * 1024)) * 100).toFixed(1);
+    return totalMB + 'MB (' + totalPercent + '%)';
+  } catch(e) {
+    return '—';
+  }
+}
+
+function updateTotalStorage() {
+  const el = document.getElementById('total-storage');
+  if (el) {
+    el.textContent = getTotalStorage();
   }
 }
 
@@ -778,6 +804,7 @@ function loadStats() {
 }
 
 loadStats();
+updateTotalStorage();
 </script>
 </body>
 </html>
