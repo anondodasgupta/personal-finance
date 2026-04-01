@@ -410,6 +410,10 @@ body::after {
           <div class="reg-stat-label">Total Spend</div>
           <div class="reg-stat-value" id="stat-pur-total">—</div>
         </div>
+        <div class="reg-stat">
+          <div class="reg-stat-label">Storage</div>
+          <div class="reg-stat-value" id="stat-pur-storage">—</div>
+        </div>
       </div>
       <div class="reg-card-bar bar-purchase"></div>
     </a>
@@ -435,6 +439,10 @@ body::after {
         <div class="reg-stat">
           <div class="reg-stat-label">Total Spend</div>
           <div class="reg-stat-value" id="stat-exp-total">—</div>
+        </div>
+        <div class="reg-stat">
+          <div class="reg-stat-label">Storage</div>
+          <div class="reg-stat-value" id="stat-exp-storage">—</div>
         </div>
       </div>
       <div class="reg-card-bar bar-expense"></div>
@@ -462,6 +470,10 @@ body::after {
           <div class="reg-stat-label">Months Tracked</div>
           <div class="reg-stat-value" id="stat-bgt-months">—</div>
         </div>
+        <div class="reg-stat">
+          <div class="reg-stat-label">Storage</div>
+          <div class="reg-stat-value" id="stat-bgt-storage">—</div>
+        </div>
       </div>
       <div class="reg-card-bar bar-budget"></div>
     </a>
@@ -488,6 +500,10 @@ body::after {
           <div class="reg-stat-label">Other Net</div>
           <div class="reg-stat-value" id="stat-inc-other">—</div>
         </div>
+        <div class="reg-stat">
+          <div class="reg-stat-label">Storage</div>
+          <div class="reg-stat-value" id="stat-inc-storage">—</div>
+        </div>
       </div>
       <div class="reg-card-bar bar-income"></div>
     </a>
@@ -513,6 +529,10 @@ body::after {
         <div class="reg-stat">
           <div class="reg-stat-label">Latest Units</div>
           <div class="reg-stat-value" id="stat-elec-units">—</div>
+        </div>
+        <div class="reg-stat">
+          <div class="reg-stat-label">Storage</div>
+          <div class="reg-stat-value" id="stat-elec-storage">—</div>
         </div>
       </div>
       <div class="reg-card-bar bar-elec"></div>
@@ -568,6 +588,20 @@ function setVal(id, text, dim=false) {
 
 function mk(y, m) { return y + '-' + String(m+1).padStart(2,'0'); }
 
+// ── STORAGE CALCULATOR ────────────────────────────
+function getRegisterStorage(key) {
+  try {
+    const data = localStorage.getItem(key);
+    if (!data) return '—';
+    const sizeBytes = new Blob([data]).size;
+    const sizeMB = (sizeBytes / 1024 / 1024).toFixed(2);
+    const sizePercent = ((sizeBytes / (10 * 1024 * 1024)) * 100).toFixed(0);
+    return sizeMB + 'MB (' + sizePercent + '%)';
+  } catch(e) {
+    return '—';
+  }
+}
+
 // ── LOAD STATS FROM LOCALSTORAGE ──────────────────
 function loadStats() {
   const now   = new Date();
@@ -585,12 +619,14 @@ function loadStats() {
       setVal('stat-pur-bills', bills.length || '0');
       setVal('stat-pur-month', monthTotal > 0 ? fmt(monthTotal) : '—', monthTotal === 0);
       setVal('stat-pur-total', total > 0 ? fmt(total) : '—', total === 0);
+      setVal('stat-pur-storage', getRegisterStorage('purchase_register_v1'));
     } else {
       setVal('stat-pur-bills', '0', true);
       setVal('stat-pur-month', 'No data', true);
       setVal('stat-pur-total', 'No data', true);
+      setVal('stat-pur-storage', '—', true);
     }
-  } catch(e) { setVal('stat-pur-bills','—',true); setVal('stat-pur-month','—',true); setVal('stat-pur-total','—',true); }
+  } catch(e) { setVal('stat-pur-bills','—',true); setVal('stat-pur-month','—',true); setVal('stat-pur-total','—',true); setVal('stat-pur-storage','—',true); }
 
   // ── EXPENSE REGISTER ──
   try {
@@ -604,12 +640,14 @@ function loadStats() {
       setVal('stat-exp-count', exps.length || '0');
       setVal('stat-exp-month', monthTotal > 0 ? fmt(monthTotal) : '—', monthTotal === 0);
       setVal('stat-exp-total', total > 0 ? fmt(total) : '—', total === 0);
+      setVal('stat-exp-storage', getRegisterStorage('expense_register_v1'));
     } else {
       setVal('stat-exp-count', '0', true);
       setVal('stat-exp-month', 'No data', true);
       setVal('stat-exp-total', 'No data', true);
+      setVal('stat-exp-storage', '—', true);
     }
-  } catch(e) { setVal('stat-exp-count','—',true); setVal('stat-exp-month','—',true); setVal('stat-exp-total','—',true); }
+  } catch(e) { setVal('stat-exp-count','—',true); setVal('stat-exp-month','—',true); setVal('stat-exp-total','—',true); setVal('stat-exp-storage','—',true); }
 
   // ── BUDGET REGISTER ──
   try {
@@ -652,12 +690,14 @@ function loadStats() {
         setVal('stat-bgt-var', '—', true);
       }
       setVal('stat-bgt-months', months.length || '0');
+      setVal('stat-bgt-storage', getRegisterStorage('budget_register_v3'));
     } else {
       setVal('stat-bgt-total', 'No data', true);
       setVal('stat-bgt-var',   'No data', true);
       setVal('stat-bgt-months', '0', true);
+      setVal('stat-bgt-storage', '—', true);
     }
-  } catch(e) { setVal('stat-bgt-total','—',true); setVal('stat-bgt-var','—',true); setVal('stat-bgt-months','—',true); }
+  } catch(e) { setVal('stat-bgt-total','—',true); setVal('stat-bgt-var','—',true); setVal('stat-bgt-months','—',true); setVal('stat-bgt-storage','—',true); }
 
   // ── INCOME REGISTER ──
   try {
@@ -694,12 +734,14 @@ function loadStats() {
         if (tradingNet === 0) tradEl.classList.add('dim');
       }
       setVal('stat-inc-other', (divNet+othNet) !== 0 ? fmt(divNet+othNet) : '—', (divNet+othNet) === 0);
+      setVal('stat-inc-storage', getRegisterStorage('income_register_v1'));
     } else {
       setVal('stat-inc-month',   'No data', true);
       setVal('stat-inc-trading', 'No data', true);
       setVal('stat-inc-other',   'No data', true);
+      setVal('stat-inc-storage', '—', true);
     }
-  } catch(e) { setVal('stat-inc-month','—',true); setVal('stat-inc-trading','—',true); setVal('stat-inc-other','—',true); }
+  } catch(e) { setVal('stat-inc-month','—',true); setVal('stat-inc-trading','—',true); setVal('stat-inc-other','—',true); setVal('stat-inc-storage','—',true); }
 
   // ── ELECTRICITY BILLS ──
   try {
@@ -719,17 +761,20 @@ function loadStats() {
         setVal('stat-elec-count',  bills.length);
         setVal('stat-elec-latest', latest.netAmt ? '\u20b9'+latest.netAmt.toLocaleString('en-IN',{maximumFractionDigits:0}) : '—');
         setVal('stat-elec-units',  latest.units ? latest.units + ' u' : '—');
+        setVal('stat-elec-storage', getRegisterStorage('electricity_bills_v1'));
       } else {
         setVal('stat-elec-count',  '0', true);
         setVal('stat-elec-latest', 'No data', true);
         setVal('stat-elec-units',  'No data', true);
+        setVal('stat-elec-storage', '—', true);
       }
     } else {
       setVal('stat-elec-count',  '0', true);
       setVal('stat-elec-latest', 'No data', true);
       setVal('stat-elec-units',  'No data', true);
+      setVal('stat-elec-storage', '—', true);
     }
-  } catch(e) { setVal('stat-elec-count','—',true); setVal('stat-elec-latest','—',true); setVal('stat-elec-units','—',true); }
+  } catch(e) { setVal('stat-elec-count','—',true); setVal('stat-elec-latest','—',true); setVal('stat-elec-units','—',true); setVal('stat-elec-storage','—',true); }
 }
 
 loadStats();
