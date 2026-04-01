@@ -292,7 +292,10 @@ table tr:hover td{background:#fdf9f2;}
     </div>
     <div style="background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:11px 14px;
       display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;border:1px solid var(--border);">
-      <div style="font-size:11px;color:var(--muted);"><strong style="color:var(--burgundy);">💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);"><strong style="color:var(--burgundy);">💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;"><strong style="color:var(--burgundy);font-weight:600;">Storage:</strong> <span id="storage-usage">checking...</span></div>
+      </div>
       <div style="display:flex;gap:5px;">
         <button class="btn btn-secondary btn-sm" onclick="exportData()">&#8595; Export</button>
         <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">&#8593; Import</button>
@@ -652,7 +655,7 @@ function loadData() {
     }
   });
 }
-function save()  { localStorage.setItem(SK, JSON.stringify(D)); }
+function save()  { localStorage.setItem(SK, JSON.stringify(D)); updateStorageDisplay(); }
 function gid()   { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
 function mk(y,m) { return y + '-' + String(m+1).padStart(2,'0'); }
@@ -2020,18 +2023,45 @@ function liveRefresh() {
   if (active.id === 'page-dashboard') renderDashboard();
 }
 
+// ══════════════════════════════════════════════════
+// STORAGE USAGE CHECK
+// ══════════════════════════════════════════════════
+function checkStorageUsage() {
+  let total = 0;
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length + key.length;
+    }
+  }
+  const usedMB = (total / 1024 / 1024).toFixed(2);
+  const limitMB = 10; // Chrome limit
+  const percentUsed = ((total / (limitMB * 1024 * 1024)) * 100).toFixed(1);
+  return { usedMB, percentUsed, totalBytes: total };
+}
+
+function updateStorageDisplay() {
+  const { usedMB, percentUsed } = checkStorageUsage();
+  const el = document.getElementById('storage-usage');
+  if (el) {
+    el.textContent = `${usedMB}MB (${percentUsed}%)`;
+  }
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   loadData();
   renderBudget();
+  updateStorageDisplay();
 
   // Live update: re-render when expense or purchase data changes in any other tab
   window.addEventListener('storage', e => {
     if (e.key === EXP_SK || e.key === PUR_SK) liveRefresh();
+    updateStorageDisplay();
   });
 
   // Live update: re-render when user switches back to this tab/window
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') liveRefresh();
+    updateStorageDisplay();
   });
   window.addEventListener('focus', liveRefresh);
 });

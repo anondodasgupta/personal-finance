@@ -83,6 +83,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .data-bar-info{font-size:11px;color:var(--muted);}
 .data-bar-info strong{color:var(--forest);}
 .data-bar-btns{display:flex;gap:5px;}
+.storage-indicator{font-size:10px;color:var(--muted);margin-top:2px;}
+.storage-indicator strong{color:var(--forest);font-weight:600;}
 .entry-header{background:var(--forest);padding:13px 14px;display:flex;align-items:center;gap:11px;}
 .back-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;
   border-radius:7px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;}
@@ -287,7 +289,10 @@ tfoot tr td{background:var(--forest)!important;color:var(--gold-lt)!important;fo
     </div>
     <div id="bills-list"></div>
     <div class="data-bar">
-      <div class="data-bar-info"><strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
+      <div>
+        <div class="data-bar-info"><strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
+        <div class="storage-indicator"><strong>Storage:</strong> <span id="storage-usage">checking...</span></div>
+      </div>
       <div class="data-bar-btns">
         <button class="btn btn-secondary btn-sm" onclick="exportData()">&#8595; Export</button>
         <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">&#8593; Import</button>
@@ -658,7 +663,7 @@ function loadData() {
   }
   if (!D.bills.length) seedData();
 }
-function save() { localStorage.setItem(SK, JSON.stringify(D)); }
+function save() { localStorage.setItem(SK, JSON.stringify(D)); updateStorageDisplay(); }
 function gid() { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
 function catCol(n) {
   const i = D.categories.findIndex(c => c.name === n);
@@ -1879,6 +1884,30 @@ function checkUrl() {
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════
+// STORAGE USAGE CHECK
+// ══════════════════════════════════════════════════
+function checkStorageUsage() {
+  let total = 0;
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length + key.length;
+    }
+  }
+  const usedMB = (total / 1024 / 1024).toFixed(2);
+  const limitMB = 10; // Chrome limit
+  const percentUsed = ((total / (limitMB * 1024 * 1024)) * 100).toFixed(1);
+  return { usedMB, percentUsed, totalBytes: total };
+}
+
+function updateStorageDisplay() {
+  const { usedMB, percentUsed } = checkStorageUsage();
+  const el = document.getElementById('storage-usage');
+  if (el) {
+    el.textContent = `${usedMB}MB (${percentUsed}%)`;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   loadData();
   populateShopSelect();
@@ -1886,6 +1915,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
   if (window.location.search) checkUrl();
   else renderBills();
+  updateStorageDisplay();
 
   // When this tab saves data, budget register open in another tab will
   // auto-receive the storage event and refresh its actuals instantly.
@@ -1895,12 +1925,14 @@ document.addEventListener('DOMContentLoaded', function() {
       var active = document.querySelector('.page.active');
       if (active && active.id === 'page-bills') renderBills();
     }
+    updateStorageDisplay();
   });
   document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
       var active = document.querySelector('.page.active');
       if (active && active.id === 'page-bills') renderBills();
     }
+    updateStorageDisplay();
   });
 });
 </script>

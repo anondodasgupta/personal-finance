@@ -673,8 +673,11 @@
 
   <!-- Data Management -->
   <div class="data-mgmt">
-    <div class="data-mgmt-info">
-      <strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device
+    <div>
+      <div class="data-mgmt-info">
+        <strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device
+      </div>
+      <div style="font-size:11px;color:#666;margin-top:6px;"><strong>Storage:</strong> <span id="storage-usage">checking...</span></div>
     </div>
     <div class="data-mgmt-btns">
       <button class="btn btn-secondary" onclick="exportData()" style="padding:9px 16px;font-size:13px;">⬇️ Export JSON</button>
@@ -750,6 +753,7 @@ function loadData() {
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
+  updateStorageDisplay();
 }
 
 function seedData() {
@@ -1262,10 +1266,35 @@ function fmt(n) {
 }
 
 // ==================== INIT ====================
+// ══════════════════════════════════════════════════
+// STORAGE USAGE CHECK
+// ══════════════════════════════════════════════════
+function checkStorageUsage() {
+  let total = 0;
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length + key.length;
+    }
+  }
+  const usedMB = (total / 1024 / 1024).toFixed(2);
+  const limitMB = 10; // Chrome limit
+  const percentUsed = ((total / (limitMB * 1024 * 1024)) * 100).toFixed(1);
+  return { usedMB, percentUsed, totalBytes: total };
+}
+
+function updateStorageDisplay() {
+  const { usedMB, percentUsed } = checkStorageUsage();
+  const el = document.getElementById('storage-usage');
+  if (el) {
+    el.textContent = `${usedMB}MB (${percentUsed}%)`;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
   populateYearDropdowns();
   renderRecords();
+  updateStorageDisplay();
 });
 </script>
 </body>

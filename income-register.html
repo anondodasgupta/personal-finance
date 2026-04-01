@@ -328,7 +328,10 @@ table tr:hover td{background:#f9f6ee;}
       </div>
       <div class="trading-grid" id="trading-grid"></div>
       <div class="data-bar" style="margin-top:8px;">
-        <div class="data-bar-info"><strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
+        <div>
+          <div class="data-bar-info"><strong>💾 Sync:</strong> Export → save to Google Drive → Import on other device</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;"><strong style="color:var(--ink);font-weight:600;">Storage:</strong> <span id="storage-usage">checking...</span></div>
+        </div>
         <div class="data-bar-btns">
           <button class="btn btn-secondary btn-sm" onclick="exportData()">↓ Export</button>
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('imp-file').click()">↑ Import</button>
@@ -645,7 +648,7 @@ function loadData() {
          tradeCats: JSON.parse(JSON.stringify(DEFAULT_TRADE_CATS))};
   }
 }
-function save() { localStorage.setItem(SK, JSON.stringify(D)); }
+function save() { localStorage.setItem(SK, JSON.stringify(D)); updateStorageDisplay(); }
 function gid()  { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
 
 // ══════════════════════════════════════════════════
@@ -1548,10 +1551,35 @@ function showPage(name) {
 // ══════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// STORAGE USAGE CHECK
+// ══════════════════════════════════════════════════
+function checkStorageUsage() {
+  let total = 0;
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length + key.length;
+    }
+  }
+  const usedMB = (total / 1024 / 1024).toFixed(2);
+  const limitMB = 10; // Chrome limit
+  const percentUsed = ((total / (limitMB * 1024 * 1024)) * 100).toFixed(1);
+  return { usedMB, percentUsed, totalBytes: total };
+}
+
+function updateStorageDisplay() {
+  const { usedMB, percentUsed } = checkStorageUsage();
+  const el = document.getElementById('storage-usage');
+  if (el) {
+    el.textContent = `${usedMB}MB (${percentUsed}%)`;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
   renderIncome();
   switchTab('trading');
+  updateStorageDisplay();
 });
 </script>
 </body>
