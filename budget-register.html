@@ -1330,8 +1330,11 @@ function renderBudget() {
         <div class="bgt-header-title">${esc(cat)}</div>
         <div class="bgt-header-total">&#8377;${fmt(catBgt,2)} bgt &nbsp;&#183;&nbsp; &#8377;${fmt(catAct,2)} actual</div>
       </div>
-      <div class="bgt-row hdr" style="grid-template-columns:2.5fr 1fr 1fr 1fr auto;">
-        <div>${cat==='Credit Card Bills'?'Card':'Payment Source'}</div><div>Budget</div><div>Actual</div><div>Variance</div><div></div>
+      <div class="bgt-row hdr" style="grid-template-columns:${cat==='Credit Card Bills'?'2fr 1.3fr 1fr 1fr 1fr auto':'2.5fr 1fr 1fr 1fr auto'};">
+        ${cat==='Credit Card Bills'
+          ? '<div>Card</div><div>Pay From</div><div>Budget</div><div>Actual</div><div>Variance</div><div></div>'
+          : '<div>Payment Source</div><div>Budget</div><div>Actual</div><div>Variance</div><div></div>'
+        }
       </div>`;
 
     catItems.forEach(it => {
@@ -1353,16 +1356,17 @@ function renderBudget() {
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
       const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),2);
 
-      html += `<div class="bgt-row" style="grid-template-columns:2.5fr 1fr 1fr 1fr auto;">
+      const cols = isCCBill ? '2fr 1.3fr 1fr 1fr 1fr auto' : '2.5fr 1fr 1fr 1fr auto';
+      html += `<div class="bgt-row" style="grid-template-columns:${cols};">
         <div>
           <div class="bgt-desc" style="color:${sCol};" title="${escQ(rowLabel)}">${isCCBill?'&#128179; ':''}${esc(rowLabel)}</div>
-          ${isCCBill && src1 ? `<div class="bgt-note">Pay via: ${esc(src1)}</div>` : ''}
           ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
         </div>
+        ${isCCBill ? `<div style="font-size:11px;color:${sCol};font-weight:600;align-self:center;">${esc(src1||'&mdash;')}</div>` : ''}
         <div><input class="bgt-inp" type="text" inputmode="decimal" value="${bgt.toFixed(2)}"
           onchange="updateBgt('${key}','${it.id}',this.value)"
           onblur="this.value=formatBgtInput(this.value)"></div>
-        <div class="bgt-actual" style="color:${act!==0?'var(--text)':'var(--muted)'};">${act!==0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
+        <div class="bgt-actual" style="color:${act\!==0?'var(--text)':'var(--muted)'};">${act\!==0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
           <button class="btn-icon" onclick="openEdit('${key}','${it.id}')">&#9998;</button>
