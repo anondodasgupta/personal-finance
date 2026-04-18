@@ -1366,7 +1366,7 @@ function renderBudget() {
         <div><input class="bgt-inp" type="text" inputmode="decimal" value="${bgt.toFixed(2)}"
           onchange="updateBgt('${key}','${it.id}',this.value)"
           onblur="this.value=formatBgtInput(this.value)"></div>
-        <div class="bgt-actual" style="color:${act\!==0?'var(--text)':'var(--muted)'};">${act\!==0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
+        <div class="bgt-actual" style="color:${act!==0?'var(--text)':'var(--muted)'};">${act!==0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
           <button class="btn-icon" onclick="openEdit('${key}','${it.id}')">&#9998;</button>
