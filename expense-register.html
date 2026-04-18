@@ -622,8 +622,9 @@ const EMOJI_GROUPS = [
 ];
 
 // ══════════════════════════════════════════════════
-// CROSS-REGISTER SYNC
+// STATE
 // ══════════════════════════════════════════════════
+// CROSS-REGISTER SYNC
 const SYNC_SK = 'finance_shared_sync_v1';
 
 function writeToSync() {
@@ -685,9 +686,6 @@ function readFromSync() {
   } catch(e) {}
 }
 
-// ══════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════
 let D = {expenses:[], categories:[], payments:[]};
 let curMonth = new Date().getMonth();
 let curYear = new Date().getFullYear();
@@ -1139,16 +1137,7 @@ function addCategory() {
 }
 function saveCatMgr() {
   if (!tempCats.length) { showToast('Need at least one category.', 'error'); return; }
-  // Detect renames before updating
-  const oldCats = D.categories.slice();
   D.categories = tempCats.slice().sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-  // Apply renames to existing expenses
-  D.categories.forEach(nc => {
-    const oc = oldCats.find(c => c.id === nc.id);
-    if (oc && oc.name !== nc.name) {
-      D.expenses.forEach(e => { if (e.category === oc.name) e.category = nc.name; });
-    }
-  });
   save(); writeToSync(); closeCatMgr(); showToast('✅ Categories saved!', 'success');
 }
 
@@ -1214,18 +1203,7 @@ function addPayMethod() {
 }
 function savePayMgr() {
   if (!tempPays.length) { showToast('Need at least one payment method.', 'error'); return; }
-  const oldPays = D.payments.slice();
   D.payments = tempPays.slice().sort((a,b) => a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
-  // Apply renames to existing expenses
-  D.payments.forEach(np => {
-    const op = oldPays.find(p => p.id === np.id);
-    if (op && op.name !== np.name) {
-      D.expenses.forEach(e => {
-        if (e.paymentMethod === op.name) e.paymentMethod = np.name;
-        if (e.paymentMethod2 === op.name) e.paymentMethod2 = np.name;
-      });
-    }
-  });
   save(); writeToSync(); populatePaymentSelects(); closePayMgr();
   showToast('✅ Payment methods saved!', 'success');
 }
@@ -1613,11 +1591,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // receive the storage event and auto-refresh their actuals.
   // Also refresh this register if purchase data changes in another tab.
   window.addEventListener('storage', e => {
+    if (e.key === SYNC_SK) { readFromSync(); save(); renderExpenses(); }
     if (e.key === PR_SK) {
       // Purchase data changed — re-render expense page so combined month view is current
       if (document.querySelector('#page-expenses.active')) renderExpenses();
     }
-    if (e.key === SYNC_SK) { readFromSync(); save(); renderExpenses(); }
     updateStorageDisplay();
   });
   document.addEventListener('visibilitychange', () => {
@@ -1692,4 +1670,66 @@ function runExpSearch() {
     if (yearQ  && d.getFullYear().toString() !== yearQ) return false;
     if (monthQ !== '' && d.getMonth() !== parseInt(monthQ)) return false;
     if (dateQ  && e.date !== dateQ) return false;
-    if (descQ  && !e.description.toLowerCase().includes(descQ)) return f
+    if (descQ  && !e.description.toLowerCase().includes(descQ)) return false;
+    if (catQ   && e.category !== catQ) return false;
+    const pm1 = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'');
+    const pm2 = e.paymentMethod2?((e.paymentMethod2==='Other'&&e.paymentOther2)?e.paymentOther2:e.paymentMethod2):'';
+    if (payQ  && pm1 !== payQ && pm2 !== payQ) return false;
+    if (pay2Q && pm1 !== pay2Q && pm2 !== pay2Q) return false;
+    if (amtQ  && Math.abs(parseFloat(e.amount)||0) < amtQ) return false;
+    return true;
+  });
+
+  results.sort((a,b) => b.date.localeCompare(a.date));
+
+  const grandTotal = results.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
+  document.getElementById('es-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+  const totEl = document.getElementById('es-total');
+  if (results.length) {
+    totEl.textContent = 'Total: ₹' + Math.abs(grandTotal).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}) + (grandTotal < 0 ? ' (net refund)' : '');
+    totEl.style.display = '';
+  } else {
+    totEl.style.display = 'none';
+  }
+
+  if (!results.length) {
+    document.getElementById('es-results').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--muted);"><div style="font-size:36px;margin-bottom:8px;">🔍</div><p>No expenses match your search.</p></div>';
+    return;
+  }
+
+  let html = '';
+  results.forEach(e => {
+    const pm1 = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'—');
+    const pm2 = e.paymentMethod2?((e.paymentMethod2==='Other'&&e.paymentOther2)?e.paymentOther2:e.paymentMethod2):'';
+    const pmStr = pm1 + (pm2 ? ' + ' + pm2 : '');
+    const isRefund = parseFloat(e.amount) < 0;
+    const cat = D.categories.find(c => c.name === e.category);
+    const catEmoji = cat ? cat.emoji + ' ' : '';
+    html += `<div class="es-result-row" onclick="closeExpSearch();jumpToExpense('${e.id}')">
+      <div class="es-result-top">
+        <div class="es-result-desc">${isRefund?'↩️ ':''}<span style="font-weight:400;font-size:10px;color:var(--muted);">${catEmoji}${escH(e.category)} · </span>${escH(e.description)}</div>
+        <div class="es-result-amt${isRefund?' refund':''}">₹${fmt(Math.abs(parseFloat(e.amount)||0))}</div>
+      </div>
+      <div class="es-result-meta">
+        <span>📅 ${fmtD(e.date)}</span>
+        <span>💳 ${escH(pmStr)}</span>
+        ${e.notes?`<span>📝 ${escH(e.notes)}</span>`:''}
+      </div>
+      <div style="font-size:9px;color:var(--teal);margin-top:4px;font-weight:600;">🔗 Click to edit</div>
+    </div>`;
+  });
+  document.getElementById('es-results').innerHTML = html;
+}
+
+function jumpToExpense(id) {
+  const e = D.expenses.find(x => x.id === id);
+  if (!e) return;
+  // Set month/year to expense's date and open edit form
+  const d = new Date(e.date + 'T00:00:00');
+  curMonth = d.getMonth(); curYear = d.getFullYear();
+  editExpense(id);
+}
+</script>
+</body>
+</html>

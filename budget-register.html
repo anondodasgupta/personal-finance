@@ -267,7 +267,7 @@ table tr:hover td{background:#fdf9f2;}
     <div id="bgt-content"></div>
     <div style="background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:15px;border:1px solid var(--border);margin-bottom:13px;">
       <div style="font-size:12px;font-weight:700;color:var(--burgundy);margin-bottom:11px;">&#10133; Add Budget Item</div>
-      <div class="form-grid full">
+      <div class="form-grid">
         <div class="fg"><label>Category *</label><select id="ni-cat"></select></div>
       </div>
       <div class="form-grid" style="margin-top:10px;">
@@ -620,31 +620,27 @@ const SRC_COLOR = {
 };
 
 // ══════════════════════════════════════════════════
-// CROSS-REGISTER SYNC
+// STATE
 // ══════════════════════════════════════════════════
+// CROSS-REGISTER SYNC
 const SYNC_SK = 'finance_shared_sync_v1';
 
 function writeToSync() {
   try {
-    // Budget stores categories as strings; convert to objects for shared sync
-    const cats = D.categories.map((c,i) =>
-      typeof c === 'string' ? {id:'bgt_cat_'+i+'_'+c.replace(/\W/g,'_'), name:c, emoji:'🏷️'} : c
-    );
+    // Budget stores categories as strings; wrap as objects for shared sync
+    const cats = D.categories.map((c,i) => ({id:'bgt_cat_'+i, name:c, emoji:'🏷️'}));
     let shared = {};
     try { shared = JSON.parse(localStorage.getItem(SYNC_SK)||'{}'); } catch(e){}
-    // Merge our payment methods
-    if (!Array.isArray(shared.payments)) shared.payments = [];
+    if (!Array.isArray(shared.payments))   shared.payments   = [];
+    if (!Array.isArray(shared.categories)) shared.categories = [];
     D.payments.forEach(p => {
       const ex = shared.payments.find(x => x.id === p.id);
       if (ex) { ex.name = p.name; ex.group = p.group; }
       else shared.payments.push({...p});
     });
-    // Merge our categories (by name for budget since ids may be synthetic)
-    if (!Array.isArray(shared.categories)) shared.categories = [];
     cats.forEach(c => {
-      const ex = shared.categories.find(x => x.id === c.id || x.name === c.name);
-      if (ex) { ex.name = c.name; ex.emoji = c.emoji || ex.emoji; }
-      else shared.categories.push({...c});
+      const ex = shared.categories.find(x => x.name === c.name);
+      if (!ex) shared.categories.push({...c});
     });
     localStorage.setItem(SYNC_SK, JSON.stringify(shared));
   } catch(e) {}
@@ -655,30 +651,20 @@ function readFromSync() {
     const r = localStorage.getItem(SYNC_SK);
     if (!r) return;
     const shared = JSON.parse(r);
-    // Merge payment methods
     if (Array.isArray(shared.payments)) {
       shared.payments.forEach(sp => {
         const local = D.payments.find(p => p.id === sp.id);
         if (local) {
-          if (local.name !== sp.name) {
-            // Payment renamed — update all budget items
-            applyPayRename(local.name, sp.name);
-            local.name = sp.name;
-          }
+          if (local.name !== sp.name) { applyPayRename(local.name, sp.name); local.name = sp.name; }
           local.group = sp.group;
         } else if (!D.payments.some(p => p.name === sp.name)) {
           D.payments.push({...sp});
         }
       });
     }
-    // Merge categories
     if (Array.isArray(shared.categories)) {
       shared.categories.forEach(sc => {
-        const localIdx = D.categories.findIndex(c => c === sc.name);
-        if (localIdx === -1 && !D.categories.some(c => c === sc.name)) {
-          D.categories.push(sc.name);
-        }
-        // Note: budget can't detect renames by id since we use name-based storage
+        if (!D.categories.some(c => c === sc.name)) D.categories.push(sc.name);
       });
     }
   } catch(e) {}
@@ -695,17 +681,6 @@ function applyPayRename(oldName, newName) {
   });
 }
 
-function applyCatRename(oldName, newName) {
-  Object.values(D.budgets || {}).forEach(items => {
-    (items || []).forEach(it => {
-      if (it.cat === oldName) it.cat = newName;
-    });
-  });
-}
-
-// ══════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════
 let D = {budgets:{}, ccCards:[], categories:[], payments:[]};
 let curMonth = new Date().getMonth();
 let curYear  = new Date().getFullYear();
@@ -964,6 +939,38 @@ function getFullActualsForMonth(year, month) {
   return map;
 }
 
+// Returns {"category||paymentSource" -> amount} for actuals in a given month.
+// Used by renderBudget to look up actual spend per budget line (cat+source keyed).
+function getCatSrcActualsForMonth(year, month) {
+  const prefix = mk(year, month);
+  const map = {};
+  function add(cat, src, amt) {
+    if (!cat || !src) return;
+    const k = cat + '||' + src;
+    map[k] = (map[k]||0) + (parseFloat(amt)||0);
+  }
+  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
+    const cat = e.category || 'Other';
+    if (cat === 'Credit Card Bills') return;
+    const pm1 = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'');
+    const pm2 = e.paymentMethod2?((e.paymentMethod2==='Other'&&e.paymentOther2)?e.paymentOther2:e.paymentMethod2):'';
+    const a2  = (pm2 && e.paymentAmt2) ? parseFloat(e.paymentAmt2)||0 : 0;
+    const a1  = (parseFloat(e.amount)||0) - a2;
+    if (pm1) add(cat, pm1, a1);
+    if (pm2) add(cat, pm2, a2);
+  });
+  getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
+    const pm1 = (b.paymentMethod==='Other'&&b.paymentOther)?b.paymentOther:(b.paymentMethod||'');
+    const pm2 = b.paymentMethod2?((b.paymentMethod2==='Other'&&b.paymentOther2)?b.paymentOther2:b.paymentMethod2):'';
+    const tot = b.items.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+    const a2  = (pm2 && b.paymentAmt2) ? parseFloat(b.paymentAmt2)||0 : 0;
+    const a1  = tot - a2;
+    if (pm1) add('Groceries & Purchases', pm1, a1);
+    if (pm2) add('Groceries & Purchases', pm2, a2);
+  });
+  return map;
+}
+
 // ══════════════════════════════════════════════════
 // CC BILLING CYCLE — INTEGER DATE COMPARISON (no UTC shift)
 // ══════════════════════════════════════════════════
@@ -1113,37 +1120,6 @@ function srcDisplay(item) {
   const s1 = (item.source==='Other' && item.sourceOther) ? item.sourceOther : (item.source||'—');
   const s2 = item.source2 ? ((item.source2==='Other' && item.sourceOther2) ? item.sourceOther2 : item.source2) : '';
   return s1 + (s2 ? ' + '+s2 : '');
-}
-
-// Returns {cat||src -> actual amount} for the given month
-// Used for category+source based budget matching
-function getCatSrcActualsForMonth(year, month) {
-  const prefix = mk(year, month);
-  const map = {};
-  function add(cat, src, amt) {
-    if (!cat || !src) return;
-    const k = cat + '||' + src;
-    map[k] = (map[k]||0) + (parseFloat(amt)||0);
-  }
-  getExpenses().filter(e => e.date.startsWith(prefix)).forEach(e => {
-    const cat = e.category || 'Other';
-    const pm1 = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'');
-    const pm2 = e.paymentMethod2?((e.paymentMethod2==='Other'&&e.paymentOther2)?e.paymentOther2:e.paymentMethod2):'';
-    const a2  = (pm2&&e.paymentAmt2)?parseFloat(e.paymentAmt2)||0:0;
-    const a1  = (parseFloat(e.amount)||0)-a2;
-    if (pm1) add(cat, pm1, a1);
-    if (pm2) add(cat, pm2, a2);
-  });
-  getPurchases().filter(b => b.date.startsWith(prefix)).forEach(b => {
-    const pm1 = (b.paymentMethod==='Other'&&b.paymentOther)?b.paymentOther:(b.paymentMethod||'');
-    const pm2 = b.paymentMethod2?((b.paymentMethod2==='Other'&&b.paymentOther2)?b.paymentOther2:b.paymentMethod2):'';
-    const tot = b.items.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
-    const a2  = (pm2&&b.paymentAmt2)?parseFloat(b.paymentAmt2)||0:0;
-    const a1  = tot-a2;
-    if (pm1) add('Groceries & Purchases', pm1, a1);
-    if (pm2) add('Groceries & Purchases', pm2, a2);
-  });
-  return map;
 }
 
 // ══════════════════════════════════════════════════
@@ -1344,13 +1320,9 @@ function renderBudget() {
     const catItems = byCat[cat];
     const catBgt   = catItems.reduce((s,i)=>s+(i.budget||0),0);
     const catAct   = catItems.reduce((s,i)=>{
-      const isCCBill = i.cat === 'Credit Card Bills';
-      const src1 = (i.source==='Other'&&i.sourceOther)?i.sourceOther:(i.source||'');
-      if (isCCBill) {
-        const dk = (i.desc||'').trim().toLowerCase();
-        return s + (actMap[dk]||0);
-      }
-      return s + (catSrcActMap[i.cat+'||'+src1]||0);
+      const s1 = (i.source==='Other'&&i.sourceOther)?i.sourceOther:(i.source||'');
+      if (i.cat === 'Credit Card Bills') return s + (actMap[(i.desc||'').trim().toLowerCase()]||0);
+      return s + (catSrcActMap[i.cat+'||'+s1]||0);
     },0);
 
     html += `<div class="budget-table-wrap">
@@ -1365,37 +1337,31 @@ function renderBudget() {
     catItems.forEach(it => {
       const isCCBill = it.cat === 'Credit Card Bills';
       const src1     = (it.source==='Other'&&it.sourceOther)?it.sourceOther:(it.source||'');
-      const catSrcKey = it.cat + '||' + src1;
+      const sCol     = SRC_COLOR[src1] || '#6b7280';
+      // Label: card name for CC bills, payment source for regular items
+      const rowLabel = isCCBill ? (it.desc || it.cat) : (src1 || '—');
 
       let bgt = it.budget || 0;
       let act;
       if (isCCBill) {
-        // Actual = payment made for this CC bill in current month
-        const descKey = (it.desc||'').trim().toLowerCase();
-        act = actMap[descKey] || 0;
+        act = actMap[(it.desc||'').trim().toLowerCase()] || 0;
       } else {
-        // Actual = sum of expenses in this category paid by this source
-        act = catSrcActMap[catSrcKey] || 0;
+        act = catSrcActMap[it.cat+'||'+src1] || 0;
       }
 
       const vr  = bgt - act;
       const vrC = vr>0?'var-u':vr<0?'var-o':'var-z';
       const vrT = vr===0?'&#8212;':(vr>0?'&#9660; ':'&#9650; ')+'&#8377;'+fmt(Math.abs(vr),2);
-      const sCol = SRC_COLOR[it.source] || SRC_COLOR[src1] || '#6b7280';
-      // Label: for CC bills show card name; for others show payment source
-      const rowLabel = isCCBill
-        ? (it.desc || it.cat)
-        : (src1 || '—');
 
       html += `<div class="bgt-row" style="grid-template-columns:2.5fr 1fr 1fr 1fr auto;">
         <div>
-          <div class="bgt-desc" title="${escQ(rowLabel)}">${isCCBill?'&#128179; ':''}${esc(rowLabel)}</div>
+          <div class="bgt-desc" style="color:${sCol};" title="${escQ(rowLabel)}">${isCCBill?'&#128179; ':''}${esc(rowLabel)}</div>
           ${isCCBill && src1 ? `<div class="bgt-note">Pay via: ${esc(src1)}</div>` : ''}
           ${it.notes?'<div class="bgt-note">'+esc(it.notes)+'</div>':''}
         </div>
         <div><input class="bgt-inp" type="text" inputmode="decimal" value="${bgt.toFixed(2)}"
-              onchange="updateBgt('${key}','${it.id}',this.value)"
-              onblur="this.value=formatBgtInput(this.value)"></div>
+          onchange="updateBgt('${key}','${it.id}',this.value)"
+          onblur="this.value=formatBgtInput(this.value)"></div>
         <div class="bgt-actual" style="color:${act!==0?'var(--text)':'var(--muted)'};">${act!==0?'&#8377;'+fmt(act,2):'&#8212;'}</div>
         <div class="bgt-var ${vrC}">${vrT}</div>
         <div style="display:flex;gap:4px;">
@@ -1425,7 +1391,7 @@ function updateBgt(key, id, val) {
 // ══════════════════════════════════════════════════
 function addBgtItem() {
   const cat  = document.getElementById('ni-cat').value;
-  const amt  = parseFloat(String(document.getElementById('ni-amt').value).replace(/[^0-9.-]/g,'')) || 0;
+  const amt  = parseFloat(String(document.getElementById('ni-amt').value).replace(/[^0-9.]/g,'')) || 0;
   const src  = document.getElementById('ni-src').value;
   const srcO = src==='Other' ? document.getElementById('ni-src-other').value.trim() : '';
   const src2 = document.getElementById('ni-src2').value;
@@ -1435,9 +1401,11 @@ function addBgtItem() {
   const key = mk(curYear,curMonth);
   if (!D.budgets[key]) D.budgets[key] = [];
   const srcName = (src==='Other'&&srcO) ? srcO : src;
-  if (D.budgets[key].some(i => i.cat===cat && ((i.source==='Other'&&i.sourceOther)?i.sourceOther:i.source)===srcName && i.cat!=='Credit Card Bills')) {
-    toast('Item already exists for this category and payment source.','error'); return;
-  }
+  const isDup = D.budgets[key].some(i => {
+    const s1 = (i.source==='Other'&&i.sourceOther)?i.sourceOther:i.source;
+    return i.cat===cat && s1===srcName && i.cat!=='Credit Card Bills';
+  });
+  if (isDup) { toast('Item already exists for this category and payment source.','error'); return; }
   D.budgets[key].push({id:gid(),desc:'',cat,budget:amt,source:src,sourceOther:srcO,source2:src2,amt2,sourceOther2:src2O,notes:''});
   save();
   document.getElementById('ni-amt').value  = '';
@@ -1456,21 +1424,19 @@ function autoPopulate() {
   if (!D.budgets[key]) D.budgets[key] = [];
   const existing = D.budgets[key];
 
-  const prevKey = mk(srcY, srcM);
+  const prevKey  = mk(srcY, srcM);
   const expenses  = getExpenses().filter(e => e.date.startsWith(prevKey));
   const purchases = getPurchases().filter(b => b.date.startsWith(prevKey));
 
-  // Helper: resolve 'Other' payment to actual name
   function resolvePay(method, other) {
     return (method === 'Other' && other) ? other : (method || '');
   }
 
-  // ── 1. Group expenses by category + payment source ──
-  // Skip 'Credit Card Bills' category entries (CC bill payments handled separately)
+  // Group expenses by category + payment source
   const catSrcMap = {}; // "cat||src" -> amount
   expenses.forEach(e => {
     const cat = e.category || 'Other';
-    if (cat === 'Credit Card Bills') return;
+    if (cat === 'Credit Card Bills') return; // skip CC bill payments
     const pm1 = resolvePay(e.paymentMethod, e.paymentOther);
     const pm2 = e.paymentMethod2 ? resolvePay(e.paymentMethod2, e.paymentOther2) : '';
     const a2  = (pm2 && e.paymentAmt2) ? parseFloat(e.paymentAmt2)||0 : 0;
@@ -1479,7 +1445,7 @@ function autoPopulate() {
     if (pm2) { const k = cat+'||'+pm2; catSrcMap[k] = (catSrcMap[k]||0) + a2; }
   });
 
-  // ── 2. Group purchases by "Groceries & Purchases" + payment source ──
+  // Group purchases under "Groceries & Purchases" by payment source
   purchases.forEach(b => {
     const pm1 = resolvePay(b.paymentMethod, b.paymentOther);
     const pm2 = b.paymentMethod2 ? resolvePay(b.paymentMethod2, b.paymentOther2) : '';
@@ -1490,7 +1456,7 @@ function autoPopulate() {
     if (pm2) { const k = 'Groceries & Purchases||'+pm2; catSrcMap[k] = (catSrcMap[k]||0) + a2; }
   });
 
-  // ── 3. Remove existing non-CC-bill items and rebuild ──
+  // Keep existing CC bill items, rebuild all other items from catSrcMap
   const ccItems = existing.filter(e => e.cat === 'Credit Card Bills');
   existing.length = 0;
   ccItems.forEach(e => existing.push(e));
@@ -1516,7 +1482,7 @@ function autoPopulate() {
     }
   });
 
-  // ── 4. CC bills DUE in this month ──
+  // CC bills due in this month — use previous month's actual payment source
   D.ccCards.forEach(card => {
     let ceM = curMonth - card.dueOffset;
     let ceY = curYear;
@@ -1526,11 +1492,11 @@ function autoPopulate() {
     const dueStr = fmtDate(bill.duY, bill.duM, bill.duD);
 
     // Find previous month's actual payment source for this CC bill
-    const prevBillPayment = expenses.find(e =>
-      e.description.trim().toLowerCase() === ccDesc.toLowerCase()
+    const prevBillPay = expenses.find(e =>
+      e.description && e.description.trim().toLowerCase() === ccDesc.toLowerCase()
     );
-    const paySource = prevBillPayment
-      ? resolvePay(prevBillPayment.paymentMethod, prevBillPayment.paymentOther)
+    const paySource = prevBillPay
+      ? resolvePay(prevBillPay.paymentMethod, prevBillPay.paymentOther)
       : (card.payFrom || 'Other');
 
     const match = existing.find(e =>
@@ -1552,36 +1518,12 @@ function autoPopulate() {
   });
 
   save(); renderBudget();
-
-  // ── 5. Sync new categories/payment methods ──
-  let syncedCats=0, syncedPays=0;
-  existing.forEach(it => {
-    if (it.cat && !D.categories.some(c=>c.toLowerCase()===it.cat.toLowerCase())) {
-      D.categories.push(it.cat); syncedCats++;
-    }
-    [it.source, it.source2].forEach(src => {
-      if (!src || src==='Other' || src==='' || src==='— None —') return;
-      if (!D.payments.some(p=>p.name.toLowerCase()===src.toLowerCase())) {
-        const isCC   = D.ccCards.some(c=>c.name.toLowerCase()===src.toLowerCase());
-        const isBank = ['Axis Bank','ICICI Bank','Yes Bank'].some(b=>b.toLowerCase()===src.toLowerCase());
-        const grp    = isCC ? 'Credit Cards' : isBank ? 'Bank / UPI / Debit' : 'Other';
-        D.payments.push({id:'p'+Date.now()+Math.random().toString(36).substr(2,4), group:grp, name:src});
-        syncedPays++;
-      }
-    });
-  });
-  if (syncedCats || syncedPays) {
-    D.categories.sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
-    save();
-  }
-
   const msg = [];
   if (added)   msg.push(added+' added');
   if (updated) msg.push(updated+' updated');
   if (msg.length) toast('Auto-populate: '+msg.join(', ')+' (from '+MONTHS[srcM]+' '+srcY+').','success');
   else toast('Nothing new to populate for '+MONTHS[curMonth]+' '+curYear+'.','info');
 }
-
 function clearBudget() {
   const key = mk(curYear,curMonth);
   if (!(D.budgets[key]||[]).length) { toast('Already empty.','info'); return; }
@@ -1738,7 +1680,7 @@ function openCCTxn(cardId) {
       <td><span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;
         background:${t.type==='Purchase'?'#ecfdf5':'#eff6ff'};
         color:${t.type==='Purchase'?'#15803d':'#1d4ed8'};">${t.type}</span></td>
-      <td style="text-align:right;font-weight:700;color:${t.amount < 0 ? 'var(--red)' : col};">&#8377;${fmt(t.amount,2)}</td>
+      <td style="text-align:right;font-weight:700;color:${col};">&#8377;${fmt(t.amount,2)}</td>
     </tr>`).join('');
     total.innerHTML = '&#8377;'+fmt(bill.total,2);
   }
@@ -1773,10 +1715,7 @@ function renderCatList() {
 }
 function saveCatMgr() {
   if (!tempCats.length) { toast('Need at least one category.','error'); return; }
-  // Detect renames by comparing with existing
-  const oldCats = D.categories.slice();
   D.categories = tempCats.slice().sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
-  // Apply renames if any (compare tempCats to oldCats - if same count, check for name changes)
   save(); writeToSync(); closeModal('cat-modal'); toast('Categories saved!','success');
 }
 function addCat() {
@@ -1830,14 +1769,7 @@ function renderPayList() {
 }
 function savePayMgr() {
   if (!tempPays.length) { toast('Need at least one payment method.','error'); return; }
-  // Detect payment renames before saving
-  const oldPays = D.payments.slice();
   D.payments = tempPays.slice().sort((a,b)=> a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0);
-  // Update budget items for any payment renames
-  D.payments.forEach(np => {
-    const op = oldPays.find(p => p.id === np.id);
-    if (op && op.name !== np.name) applyPayRename(op.name, np.name);
-  });
   save(); writeToSync(); closeModal('pay-modal');
   toast('Payment methods saved!','success');
 }
@@ -2156,8 +2088,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // Live update: re-render when expense or purchase data changes in any other tab
   window.addEventListener('storage', e => {
+    if (e.key === SYNC_SK) { readFromSync(); save(); renderBudget(); }
     if (e.key === EXP_SK || e.key === PUR_SK) liveRefresh();
-    if (e.key === SYNC_SK) { readFromSync(); save(); liveRefresh(); }
     updateStorageDisplay();
   });
 
@@ -2227,4 +2159,78 @@ function runSearch() {
       const s1 = (it.source==='Other'&&it.sourceOther)?it.sourceOther:(it.source||'');
       const s2 = it.source2?((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2):'';
       if (payQ && s1 !== payQ && s2 !== payQ) return;
-      if (amtQ && (it.budget||0) < amtQ) re
+      if (amtQ && (it.budget||0) < amtQ) return;
+      results.push({key, it, ky, km: parseInt(km)-1});
+    });
+  });
+
+  results.sort((a,b) => b.key.localeCompare(a.key));
+
+  const grandTotal = results.reduce((s,r) => s + (r.it.budget||0), 0);
+  document.getElementById('sch-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+  const totEl = document.getElementById('sch-total');
+  if (results.length) {
+    totEl.textContent = 'Total: ₹' + grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    totEl.style.display = '';
+  } else {
+    totEl.style.display = 'none';
+  }
+
+  if (!results.length) {
+    document.getElementById('sch-results').innerHTML =
+      '<div class="sch-no-results"><div class="ei">🔍</div><p>No budget items match your search.</p></div>';
+    return;
+  }
+
+  let html = '';
+  results.forEach(({key, it, ky, km}) => {
+    const s1 = (it.source==='Other'&&it.sourceOther)?it.sourceOther:(it.source||'—');
+    const s2 = it.source2?((it.source2==='Other'&&it.sourceOther2)?it.sourceOther2:it.source2):'';
+    const srcStr = s1 + (s2?' + '+s2:'');
+    const mLabel = MONTHS[km]+' '+ky;
+    const varC = it.cat==='Credit Card Bills'?'var(--blue)':'var(--burgundy)';
+    html += `<div class="sch-row" onclick="jumpToBudgetItem('${key}','${it.id}')">
+      <div class="sch-row-top">
+        <div class="sch-row-desc">${it.cat==='Credit Card Bills'?'💳 ':''}${esc(it.desc)}</div>
+        <div class="sch-row-amt" style="color:${varC};">₹${fmt(it.budget||0,2)}</div>
+      </div>
+      <div class="sch-row-meta">
+        <span>📅 ${mLabel}</span>
+        <span>🏷️ ${esc(it.cat)}</span>
+        <span>💳 ${esc(srcStr)}</span>
+        ${it.notes?`<span>📝 ${esc(it.notes)}</span>`:''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('sch-results').innerHTML = html;
+}
+
+function jumpToBudgetItem(key, id) {
+  // Navigate to the correct month/year and highlight the item
+  const [ky, km] = key.split('-');
+  curYear  = parseInt(ky);
+  curMonth = parseInt(km) - 1;
+  closeModal('search-modal');
+  // Show budget page
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-budget').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-budget').classList.add('active');
+  renderBudget();
+  // Highlight the row after render
+  setTimeout(() => {
+    const allRows = document.querySelectorAll('.bgt-row');
+    allRows.forEach(row => {
+      const editBtn = row.querySelector('[onclick*="'+id+'"]');
+      if (editBtn) {
+        row.style.background = '#fef9ec';
+        row.style.transition = 'background 1s';
+        row.scrollIntoView({behavior:'smooth', block:'center'});
+        setTimeout(() => { row.style.background = ''; }, 2500);
+      }
+    });
+  }, 150);
+}
+</script>
+</body>
+</html>
