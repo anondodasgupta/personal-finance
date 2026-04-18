@@ -627,6 +627,72 @@ const EMOJI_GROUPS = [
   {tab:'Nature', list:['🌿','🌱','🍃','🌍','♻️','🌸','🌻','🍀','🌲','🍂','🌊','🌤️','🌈','🔥','💎','🪨']}
 ];
 
+// ══════════════════════════════════════════════════
+// CROSS-REGISTER SYNC
+// ══════════════════════════════════════════════════
+const SYNC_SK = 'finance_shared_sync_v1';
+
+function writeToSync() {
+  try {
+    let shared = {};
+    try { shared = JSON.parse(localStorage.getItem(SYNC_SK)||'{}'); } catch(e){}
+    if (!Array.isArray(shared.categories)) shared.categories = [];
+    if (!Array.isArray(shared.payments))   shared.payments   = [];
+    D.categories.forEach(function(c) {
+      var ex = shared.categories.find(function(x){ return x.id === c.id; });
+      if (ex) { ex.name = c.name; ex.emoji = c.emoji || ex.emoji; }
+      else shared.categories.push(Object.assign({}, c));
+    });
+    D.payments.forEach(function(p) {
+      var ex = shared.payments.find(function(x){ return x.id === p.id; });
+      if (ex) { ex.name = p.name; ex.group = p.group; }
+      else shared.payments.push(Object.assign({}, p));
+    });
+    localStorage.setItem(SYNC_SK, JSON.stringify(shared));
+  } catch(e) {}
+}
+
+function readFromSync() {
+  try {
+    var r = localStorage.getItem(SYNC_SK);
+    if (!r) return;
+    var shared = JSON.parse(r);
+    if (Array.isArray(shared.payments)) {
+      shared.payments.forEach(function(sp) {
+        var local = D.payments.find(function(p){ return p.id === sp.id; });
+        if (local) {
+          if (local.name !== sp.name) {
+            D.bills.forEach(function(b) {
+              if (b.paymentMethod === local.name) b.paymentMethod = sp.name;
+              if (b.paymentMethod2 === local.name) b.paymentMethod2 = sp.name;
+            });
+            local.name = sp.name;
+          }
+          local.group = sp.group;
+        } else if (!D.payments.some(function(p){ return p.name === sp.name; })) {
+          D.payments.push(Object.assign({}, sp));
+        }
+      });
+    }
+    if (Array.isArray(shared.categories)) {
+      shared.categories.forEach(function(sc) {
+        var local = D.categories.find(function(c){ return c.id === sc.id; });
+        if (local) {
+          if (local.name !== sc.name) {
+            D.bills.forEach(function(b) {
+              b.items.forEach(function(i){ if (i.category === local.name) i.category = sc.name; });
+            });
+            local.name = sc.name;
+          }
+          local.emoji = sc.emoji || local.emoji;
+        } else if (!D.categories.some(function(c){ return c.name === sc.name; })) {
+          D.categories.push(Object.assign({}, sc));
+        }
+      });
+    }
+  } catch(e) {}
+}
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 let D = {bills:[], categories:[], shops:[], payments:[]};
 let curItems = [];
@@ -662,6 +728,7 @@ function loadData() {
          payments:JSON.parse(JSON.stringify(DEFAULT_PAYMENTS))};
   }
   if (!D.bills.length) seedData();
+  readFromSync();
 }
 function save() { localStorage.setItem(SK, JSON.stringify(D)); updateStorageDisplay(); }
 function gid() { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
@@ -985,7 +1052,7 @@ function renderEntryItems() {
     html += '<div class="item-row-meta">' + catBadge(i.category) + '<span style="font-size:10px;color:var(--muted);">' + i.qty + ' ' + i.uom + '</span></div>';
     html += '</div>';
     html += '<div style="display:flex;align-items:center;gap:6px;">';
-    html += '<div class="item-row-amt" style="color:' + (i.amount < 0 ? 'var(--red)' : 'var(--green)') + ';">₹' + fmt(i.amount) + (i.amount < 0 ? ' <span style="font-size:10px;font-weight:700;">(Refund)</span>' : '') + '</div>';
+    html += '<div class="item-row-amt" style="color:' + (i.amount < 0 ? 'var(--red)' : 'var(--green)') + ';">₹' + fmt(i.amount) + '</div>';
     html += '<div class="item-btns">';
     html += '<button class="btn-icon" onclick="openItemModal(\'' + i.id + '\')">✏️</button>';
     html += '<button class="btn-icon del" onclick="removeItem(\'' + i.id + '\')">🗑️</button>';
@@ -1248,9 +1315,17 @@ function addCategory() {
 }
 function saveCatMgr() {
   if (!tempCats.length) { showToast('Need at least one category.', 'error'); return; }
+  var oldCats = D.categories.slice();
   D.categories = tempCats.slice().sort(function(a,b){ return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
-  save(); closeCatMgr();
-  showToast('✅ Categories saved!', 'success');
+  D.categories.forEach(function(nc) {
+    var oc = oldCats.find(function(c){ return c.id === nc.id; });
+    if (oc && oc.name !== nc.name) {
+      D.bills.forEach(function(b) {
+        b.items.forEach(function(i){ if (i.category === oc.name) i.category = nc.name; });
+      });
+    }
+  });
+  save(); writeToSync(); closeCatMgr(); showToast('✅ Categories saved!', 'success');
 }
 
 // ── SHOP MANAGER ───────────────────────────────────────────────────────────
@@ -1370,9 +1445,18 @@ function addPayMethod() {
 }
 function savePayMgr() {
   if (!tempPays.length) { showToast('Need at least one payment method.', 'error'); return; }
+  var oldPays = D.payments.slice();
   D.payments = tempPays.slice().sort(function(a,b){ return a.group===b.group ? a.name.toLowerCase().localeCompare(b.name.toLowerCase()) : 0; });
-  save(); populatePaymentSelects(); closePayMgr();
-  showToast('✅ Payment methods saved!', 'success');
+  D.payments.forEach(function(np) {
+    var op = oldPays.find(function(p){ return p.id === np.id; });
+    if (op && op.name !== np.name) {
+      D.bills.forEach(function(b) {
+        if (b.paymentMethod === op.name) b.paymentMethod = np.name;
+        if (b.paymentMethod2 === op.name) b.paymentMethod2 = np.name;
+      });
+    }
+  });
+  save(); writeToSync(); populatePaymentSelects(); closePayMgr(); showToast('✅ Payment methods saved!', 'success');
 }
 function delBillConfirm(id) {
   var b = D.bills.find(function(x){ return x.id === id; });
@@ -1856,85 +1940,4 @@ function importData(e) {
       if (obj.categories && Array.isArray(obj.categories)) D.categories = obj.categories;
       if (obj.shops && Array.isArray(obj.shops)) D.shops = obj.shops;
       if (obj.payments && Array.isArray(obj.payments)) D.payments = obj.payments;
-      save(); renderBills(); populateShopSelect(); populatePaymentSelects();
-      showToast('✅ Imported ' + added + ' bill' + (added!==1?'s':'') + '!', 'success');
-    } catch(err) { showToast('❌ Invalid file.', 'error'); }
-    e.target.value = '';
-  };
-  r.readAsText(file);
-}
-
-// ── URL DEEP LINK ──────────────────────────────────────────────────────────
-function checkUrl() {
-  var p = new URLSearchParams(window.location.search);
-  if (p.get('page') === 'dashboard') {
-    showPage('dashboard');
-    var date = p.get('date');
-    if (date) {
-      var d = new Date(date + 'T00:00:00');
-      setTimeout(function(){
-        var sy = document.getElementById('d-year');
-        var yr = d.getFullYear().toString();
-        for (var i=0;i<sy.options.length;i++){ if(sy.options[i].value===yr){ sy.value=yr; break; } }
-        document.getElementById('d-month').value = MONTHS[d.getMonth()];
-        onDashFilter('month');
-      }, 200);
-    }
-  }
-}
-
-// ── INIT ───────────────────────────────────────────────────────────────────
-// ══════════════════════════════════════════════════
-// STORAGE USAGE CHECK
-// ══════════════════════════════════════════════════
-function checkStorageUsage() {
-  const SK = 'purchase_register_v1';
-  let total = 0;
-  const data = localStorage.getItem(SK);
-  if (data) {
-    total = new Blob([data]).size;
-  }
-  const usedMB = (total / 1024 / 1024).toFixed(2);
-  const limitMB = 10; // Chrome limit
-  const percentUsed = ((total / (limitMB * 1024 * 1024)) * 100).toFixed(1);
-  return { usedMB, percentUsed, totalBytes: total };
-}
-
-function updateStorageDisplay() {
-  const { usedMB, percentUsed } = checkStorageUsage();
-  const el = document.getElementById('storage-usage');
-  if (el) {
-    el.textContent = `${usedMB}MB (${percentUsed}%)`;
-  }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  loadData();
-  populateShopSelect();
-  populatePaymentSelects();
-  document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
-  if (window.location.search) checkUrl();
-  else renderBills();
-  updateStorageDisplay();
-
-  // When this tab saves data, budget register open in another tab will
-  // auto-receive the storage event and refresh its actuals instantly.
-  // Also refresh bills view if expense data changes in another tab (combined view).
-  window.addEventListener('storage', function(e) {
-    if (e.key === 'expense_register_v1') {
-      var active = document.querySelector('.page.active');
-      if (active && active.id === 'page-bills') renderBills();
-    }
-    updateStorageDisplay();
-  });
-  document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') {
-      var active = document.querySelector('.page.active');
-      if (active && active.id === 'page-bills') renderBills();
-    }
-    updateStorageDisplay();
-  });
-});
-</script>
-</body>
-</html>
+  
