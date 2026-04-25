@@ -1907,7 +1907,7 @@ function renderDashboard() {
     const[y,m]=k.split('-');
     const year=parseInt(y),month=parseInt(m)-1;
     const items=D.budgets[k]||[];
-    const actMap=getActualsForMonth(year,month);
+    const actMap=getFullActualsForMonth(year,month);
     // Exclude CC bill items from KPI/variance totals (they duplicate underlying expenses)
     const expItems = items.filter(i=>i.cat!=='Credit Card Bills');
     const ccItems  = items.filter(i=>i.cat==='Credit Card Bills');
