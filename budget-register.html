@@ -1907,18 +1907,22 @@ function renderDashboard() {
     const[y,m]=k.split('-');
     const year=parseInt(y),month=parseInt(m)-1;
     const items=D.budgets[k]||[];
-    const actMap=getFullActualsForMonth(year,month);
+    const catSrcMap=getCatSrcActualsForMonth(year,month);
     // Exclude CC bill items from KPI/variance totals (they duplicate underlying expenses)
     const expItems = items.filter(i=>i.cat!=='Credit Card Bills');
     const ccItems  = items.filter(i=>i.cat==='Credit Card Bills');
     const bgt=expItems.reduce((s,i)=>s+(i.budget||0),0);
-    const act=expItems.reduce((s,i)=>s+(actMap[i.desc.trim().toLowerCase()]||0),0);
+    const act=expItems.reduce((s,i)=>{
+      const s1=(i.source==='Other'&&i.sourceOther)?i.sourceOther:(i.source||'');
+      return s+(catSrcMap[i.cat+'||'+s1]||0);
+    },0);
     const ccBillsTotal=ccItems.reduce((s,i)=>s+(i.budget||0),0);
     totBgt+=bgt; totAct+=act; totCCBills+=ccBillsTotal;
     // Category breakdown: all items except CC bills
     expItems.forEach(i=>{
+      const s1=(i.source==='Other'&&i.sourceOther)?i.sourceOther:(i.source||'');
       catBgt[i.cat]=(catBgt[i.cat]||0)+(i.budget||0);
-      catAct[i.cat]=(catAct[i.cat]||0)+(actMap[i.desc.trim().toLowerCase()]||0);
+      catAct[i.cat]=(catAct[i.cat]||0)+(catSrcMap[i.cat+'||'+s1]||0);
     });
     return{k,year,month,label:MONTHS[month].substr(0,3)+' '+String(y).substr(2),bgt,act};
   });
