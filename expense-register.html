@@ -1631,7 +1631,9 @@ function openExpSearch() {
 
   const yrSel = document.getElementById('es-year');
   yrSel.innerHTML = '<option value="">All years</option>';
-  const years = [...new Set(D.expenses.map(e => e.date.substr(0,4)))].sort((a,b)=>b-a);
+  // Include years from both expense entries and purchase bills
+  const purchaseBillYears = getPurchaseBills().map(b => b.date.substr(0,4));
+  const years = [...new Set([...D.expenses.map(e => e.date.substr(0,4)), ...purchaseBillYears])].sort((a,b)=>b-a);
   years.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; yrSel.appendChild(o); });
 
   // Default to current month/year view
@@ -1655,6 +1657,9 @@ function clearExpSearch() {
   runExpSearch();
 }
 
+// The "Groceries & Purchases" category name as used in the expense register
+const PURCHASE_CAT_NAME = 'Groceries & Purchases';
+
 function runExpSearch() {
   const descQ  = document.getElementById('es-desc').value.trim().toLowerCase();
   const catQ   = document.getElementById('es-cat').value;
@@ -1665,7 +1670,8 @@ function runExpSearch() {
   const dateQ  = document.getElementById('es-date').value;
   const amtQ   = parseFloat(document.getElementById('es-amt').value) || 0;
 
-  const results = D.expenses.filter(e => {
+  // --- Expense entries ---
+  const expResults = D.expenses.filter(e => {
     const d = new Date(e.date + 'T00:00:00');
     if (yearQ  && d.getFullYear().toString() !== yearQ) return false;
     if (monthQ !== '' && d.getMonth() !== parseInt(monthQ)) return false;
@@ -1678,46 +1684,104 @@ function runExpSearch() {
     if (pay2Q && pm1 !== pay2Q && pm2 !== pay2Q) return false;
     if (amtQ  && Math.abs(parseFloat(e.amount)||0) < amtQ) return false;
     return true;
-  });
+  }).map(e => ({_type:'expense', date:e.date, _data:e}));
 
-  results.sort((a,b) => b.date.localeCompare(a.date));
+  // --- Purchase bill entries (shown when catQ is blank or 'Groceries & Purchases') ---
+  let purResults = [];
+  const includePurchases = !catQ || catQ === PURCHASE_CAT_NAME;
+  if (includePurchases) {
+    getPurchaseBills().forEach(b => {
+      const d = new Date(b.date + 'T00:00:00');
+      if (yearQ  && d.getFullYear().toString() !== yearQ) return;
+      if (monthQ !== '' && d.getMonth() !== parseInt(monthQ)) return;
+      if (dateQ  && b.date !== dateQ) return;
+      const pm1 = (b.paymentMethod==='Other'&&b.paymentOther)?b.paymentOther:(b.paymentMethod||'');
+      const pm2 = b.paymentMethod2?((b.paymentMethod2==='Other'&&b.paymentOther2)?b.paymentOther2:b.paymentMethod2):'';
+      if (payQ  && pm1 !== payQ && pm2 !== payQ) return;
+      if (pay2Q && pm1 !== pay2Q && pm2 !== pay2Q) return;
+      const billTotal = b.items.reduce((s,i) => s + (parseFloat(i.amount)||0), 0);
+      if (amtQ  && billTotal < amtQ) return;
+      // If desc filter is set, match against shop name or any item name
+      if (descQ) {
+        const shopMatch = (b.shop||'').toLowerCase().includes(descQ);
+        const itemMatch = b.items.some(i => (i.name||'').toLowerCase().includes(descQ));
+        if (!shopMatch && !itemMatch) return;
+      }
+      purResults.push({_type:'purchase', date:b.date, _data:b});
+    });
+  }
 
-  const grandTotal = results.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
-  document.getElementById('es-count').textContent = results.length + ' result' + (results.length!==1?'s':'') + ' found';
+  // Merge and sort by date desc
+  const allResults = [...expResults, ...purResults].sort((a,b) => b.date.localeCompare(a.date));
+
+  // Grand total: expenses + purchase bill totals
+  const grandTotal = allResults.reduce((s, r) => {
+    if (r._type === 'expense') return s + (parseFloat(r._data.amount)||0);
+    return s + r._data.items.reduce((si,i) => si + (parseFloat(i.amount)||0), 0);
+  }, 0);
+
+  document.getElementById('es-count').textContent = allResults.length + ' result' + (allResults.length!==1?'s':'') + ' found';
   const totEl = document.getElementById('es-total');
-  if (results.length) {
-    totEl.textContent = 'Total: ₹' + Math.abs(grandTotal).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}) + (grandTotal < 0 ? ' (net refund)' : '');
+  if (allResults.length) {
+    totEl.textContent = 'Total: ₹' + grandTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
     totEl.style.display = '';
   } else {
     totEl.style.display = 'none';
   }
 
-  if (!results.length) {
+  if (!allResults.length) {
     document.getElementById('es-results').innerHTML =
-      '<div style="text-align:center;padding:30px;color:var(--muted);"><div style="font-size:36px;margin-bottom:8px;">🔍</div><p>No expenses match your search.</p></div>';
+      '<div style="text-align:center;padding:30px;color:var(--muted);"><div style="font-size:36px;margin-bottom:8px;">🔍</div><p>No entries match your search.</p></div>';
     return;
   }
 
   let html = '';
-  results.forEach(e => {
-    const pm1 = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'—');
-    const pm2 = e.paymentMethod2?((e.paymentMethod2==='Other'&&e.paymentOther2)?e.paymentOther2:e.paymentMethod2):'';
-    const pmStr = pm1 + (pm2 ? ' + ' + pm2 : '');
-    const isRefund = parseFloat(e.amount) < 0;
-    const cat = D.categories.find(c => c.name === e.category);
-    const catEmoji = cat ? cat.emoji + ' ' : '';
-    html += `<div class="es-result-row" onclick="closeExpSearch();jumpToExpense('${e.id}')">
-      <div class="es-result-top">
-        <div class="es-result-desc">${isRefund?'↩️ ':''}<span style="font-weight:400;font-size:10px;color:var(--muted);">${catEmoji}${escH(e.category)} · </span>${escH(e.description)}</div>
-        <div class="es-result-amt${isRefund?' refund':''}">₹${fmt(Math.abs(parseFloat(e.amount)||0))}</div>
-      </div>
-      <div class="es-result-meta">
-        <span>📅 ${fmtD(e.date)}</span>
-        <span>💳 ${escH(pmStr)}</span>
-        ${e.notes?`<span>📝 ${escH(e.notes)}</span>`:''}
-      </div>
-      <div style="font-size:9px;color:var(--teal);margin-top:4px;font-weight:600;">🔗 Click to edit</div>
-    </div>`;
+  allResults.forEach(r => {
+    if (r._type === 'expense') {
+      const e = r._data;
+      const pm1 = (e.paymentMethod==='Other'&&e.paymentOther)?e.paymentOther:(e.paymentMethod||'—');
+      const pm2 = e.paymentMethod2?((e.paymentMethod2==='Other'&&e.paymentOther2)?e.paymentOther2:e.paymentMethod2):'';
+      const pmStr = pm1 + (pm2 ? ' + ' + pm2 : '');
+      const isRefund = parseFloat(e.amount) < 0;
+      const cat = D.categories.find(c => c.name === e.category);
+      const catEmoji = cat ? cat.emoji + ' ' : '';
+      html += `<div class="es-result-row" onclick="closeExpSearch();jumpToExpense('${e.id}')">
+        <div class="es-result-top">
+          <div class="es-result-desc">${isRefund?'↩️ ':''}<span style="font-weight:400;font-size:10px;color:var(--muted);">${catEmoji}${escH(e.category)} · </span>${escH(e.description)}</div>
+          <div class="es-result-amt${isRefund?' refund':''}">₹${fmt(Math.abs(parseFloat(e.amount)||0))}</div>
+        </div>
+        <div class="es-result-meta">
+          <span>📅 ${fmtD(e.date)}</span>
+          <span>💳 ${escH(pmStr)}</span>
+          ${e.notes?`<span>📝 ${escH(e.notes)}</span>`:''}
+        </div>
+        <div style="font-size:9px;color:var(--teal);margin-top:4px;font-weight:600;">🔗 Click to edit</div>
+      </div>`;
+    } else {
+      // Purchase bill result row
+      const b = r._data;
+      const billTotal = b.items.reduce((s,i) => s + (parseFloat(i.amount)||0), 0);
+      const pm1 = (b.paymentMethod==='Other'&&b.paymentOther)?b.paymentOther:(b.paymentMethod||'—');
+      const pm2 = b.paymentMethod2?((b.paymentMethod2==='Other'&&b.paymentOther2)?b.paymentOther2:b.paymentMethod2):'';
+      const pmStr = pm1 + (pm2 ? ' + ' + pm2 : '');
+      const itemNames = b.items.map(i => escH(i.name)).join(', ');
+      html += `<div class="es-result-row" style="border-color:#b8ddd0;background:#f0f7f4;" onclick="closeExpSearch();openPurchaseForDate('${b.date}')">
+        <div class="es-result-top">
+          <div class="es-result-desc">
+            <span style="display:inline-flex;align-items:center;gap:3px;background:#2a7c6f;color:#fff;border-radius:4px;font-size:9px;font-weight:700;padding:1px 6px;text-transform:uppercase;letter-spacing:.5px;margin-right:4px;">🛒 Purchase Bill</span>
+            <span style="font-weight:700;">${escH(b.shop||'Purchase')}</span>
+          </div>
+          <div class="es-result-amt">₹${fmt(billTotal)}</div>
+        </div>
+        <div class="es-result-meta">
+          <span>📅 ${fmtD(b.date)}</span>
+          <span>💳 ${escH(pmStr)}</span>
+          <span>📦 ${b.items.length} item${b.items.length!==1?'s':''}</span>
+        </div>
+        ${itemNames ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Items: ${itemNames}</div>` : ''}
+        <div style="font-size:9px;color:var(--teal);margin-top:4px;font-weight:600;">🔗 Click to open in Purchase Register</div>
+      </div>`;
+    }
   });
   document.getElementById('es-results').innerHTML = html;
 }
